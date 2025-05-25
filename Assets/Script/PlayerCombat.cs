@@ -1,6 +1,10 @@
 using UnityEngine;
 using FishNet.Object;
+using FishNet.Connection;
+using FishNet.Object.Synchronizing;
 using UnityEngine.UI;
+using System.Collections;
+using Game.Player;
 
 public class PlayerCombat : NetworkBehaviour
 {
@@ -8,7 +12,7 @@ public class PlayerCombat : NetworkBehaviour
     [SerializeField] private float attackRange = 2.5f;
     [SerializeField] private int damageAmount = 20;
     [SerializeField] private int maxHealth = 100;
-    [SerializeField] private float respawnDelay = 5f;
+    [SerializeField] private float respawnDelay = 3f;
 
     [Header("References")]
     [SerializeField] private Transform cameraHolder;
@@ -16,23 +20,23 @@ public class PlayerCombat : NetworkBehaviour
     [SerializeField] private ParticleSystem deathEffect;
     [SerializeField] private AudioClip deathSound;
     [SerializeField] private Transform[] spawnPoints;
+    [SerializeField] private PlayerController playerController;
 
-    private Camera playerCamera;
     private int currentHealth;
     private bool isDead = false;
 
     private void Awake()
     {
-        // Awake'te temel referanslarý kontrol et
         if (healthBar == null)
-        {
             healthBar = GetComponentInChildren<Slider>();
-        }
+
+        if (playerController == null)
+            playerController = GetComponent<PlayerController>();
 
         if (spawnPoints == null || spawnPoints.Length == 0)
         {
-            spawnPoints = new Transform[] { transform };
-            Debug.LogWarning("SpawnPoints atanmamýþ, varsayýlan olarak kendi pozisyonu kullanýlacak");
+            Debug.LogWarning("SpawnPoints atanmadý. Sahnedeki PlayerSpawner'dan alýnacak.");
+            
         }
     }
 
@@ -53,44 +57,91 @@ public class PlayerCombat : NetworkBehaviour
             healthBar.maxValue = maxHealth;
             healthBar.value = currentHealth;
         }
-        else
-        {
-            Debug.LogWarning("HealthBar referansý bulunamadý");
-        }
+    }
 
-        if (cameraHolder != null)
+    // === Hasar alma ===
+    [Server]
+    public void TakeDamage(int amount)
+    {
+        if (isDead) return;
+
+        currentHealth -= amount;
+
+        RpcUpdateHealth(currentHealth);
+
+        if (currentHealth <= 0)
         {
-            playerCamera = cameraHolder.GetComponentInChildren<Camera>();
-            if (playerCamera != null) playerCamera.enabled = true;
+            isDead = true;
+            RpcOnDeath();
+            StartCoroutine(ServerRespawnRoutine());
         }
     }
 
+    // === Diðer oyuncuya saldýrý ===
     [Server]
-    private void ServerRespawn()
+    public void TryAttack()
     {
-        if (spawnPoints == null || spawnPoints.Length == 0)
+        if (!IsOwner || isDead) return;
+
+        Ray ray = new Ray(cameraHolder.position, cameraHolder.forward);
+        if (Physics.Raycast(ray, out RaycastHit hit, attackRange))
         {
-            Debug.LogWarning("Spawn noktasý yok, varsayýlan pozisyonda respawn");
-            transform.position = Vector3.zero;
+            if (hit.collider.TryGetComponent<PlayerCombat>(out var target))
+            {
+                target.TakeDamage(damageAmount);
+            }
+        }
+    }
+
+    // === Server'da yeniden doðma ===
+    [Server]
+    private IEnumerator ServerRespawnRoutine()
+    {
+        yield return new WaitForSeconds(respawnDelay);
+
+        int id = playerController != null ? playerController.PlayerID : Owner.ClientId;
+        Transform spawnPoint = (spawnPoints != null && id < spawnPoints.Length) ? spawnPoints[id] : null;
+
+        if (spawnPoint != null)
+        {
+            transform.position = spawnPoint.position;
+            transform.rotation = spawnPoint.rotation;
         }
         else
         {
-            Transform spawnPoint = spawnPoints[Random.Range(0, spawnPoints.Length)];
-            transform.position = spawnPoint.position;
+            Debug.LogWarning("SpawnPoint bulunamadý, (0,0,0)'a konumlandý.");
+            transform.position = Vector3.zero;
         }
 
         currentHealth = maxHealth;
         isDead = false;
-        RpcOnRespawn();
+        RpcOnRespawn(currentHealth);
     }
 
-    // Diðer metodlar ayný kalabilir...
-
-
-[ObserversRpc]
-    private void RpcOnRespawn()
+    // === RPC'ler ===
+    [ObserversRpc]
+    private void RpcUpdateHealth(int newHealth)
     {
         if (healthBar != null)
-            healthBar.value = currentHealth;
+            healthBar.value = newHealth;
+    }
+
+    [ObserversRpc]
+    private void RpcOnDeath()
+    {
+        if (deathEffect != null)
+            Instantiate(deathEffect, transform.position, Quaternion.identity);
+
+        if (deathSound != null)
+            AudioSource.PlayClipAtPoint(deathSound, transform.position);
+    }
+
+    [ObserversRpc]
+    private void RpcOnRespawn(int newHealth)
+    {
+        if (IsOwner && healthBar != null)
+        {
+            healthBar.value = newHealth;
+        }
     }
 }

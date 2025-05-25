@@ -1,5 +1,6 @@
 ﻿using FishNet.Connection;
 using FishNet.Object;
+using System;
 using UnityEngine;
 
 namespace FishNet.Example.Scened
@@ -14,6 +15,8 @@ namespace FishNet.Example.Scened
         private float _moveRate = 4f;
         [SerializeField]
         private bool _clientAuth = true;
+
+        public int PlayerID { get; set; }
 
         private void Awake()
         {
@@ -72,6 +75,10 @@ namespace FishNet.Example.Scened
             transform.Rotate(new(0f, hor * 100f * Time.deltaTime, 0f));
         }
 
+        public void DeliverHeldItem()
+        {
+            throw new NotImplementedException();
+        }
     }
 
 

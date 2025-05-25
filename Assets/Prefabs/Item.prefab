@@ -16,6 +16,7 @@ GameObject:
   - component: {fileID: 3184106423463736343}
   - component: {fileID: -4691857505756631958}
   - component: {fileID: 1352771315242983867}
+  - component: {fileID: 5860938933460327001}
   m_Layer: 0
   m_Name: Item
   m_TagString: Item
@@ -182,7 +183,7 @@ MonoBehaviour:
   _spectatorInterpolation: 2
   _enableTeleport: 0
   _teleportThreshold: 1
-  <PrefabId>k__BackingField: 9
+  <PrefabId>k__BackingField: 14
   <SpawnableCollectionId>k__BackingField: 0
   <AssetPathHash>k__BackingField: 12599641886255721749
   <SceneId>k__BackingField: 0
@@ -249,3 +250,17 @@ MonoBehaviour:
     X: 0
     Y: 0
     Z: 0
+--- !u!114 &5860938933460327001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3359497272812113451}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d1327175237e74a409eb553159a4705a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  OriginalKinematicState: 0
+  ownerPlayerID: 0

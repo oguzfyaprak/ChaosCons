@@ -171,7 +171,19 @@ MonoBehaviour:
     m_ActionId: b7230bb6-fc9b-4f52-8b25-f5e19cb2c2ba
     m_ActionName: 'Player/Next[/Keyboard/2]'
   - m_PersistentCalls:
-      m_Calls: []
+      m_Calls:
+      - m_Target: {fileID: 7696843365788201444}
+        m_TargetAssemblyTypeName: PlayerController, Assembly-CSharp
+        m_MethodName: OnSprint
+        m_Mode: 0
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
     m_ActionId: 641cd816-40e6-41b4-8c3d-04687c349290
     m_ActionName: 'Player/Sprint[/Keyboard/leftShift]'
   - m_PersistentCalls:
@@ -235,6 +247,7 @@ MonoBehaviour:
   _addedNetworkObject: {fileID: 7837606397448522166}
   _networkObjectCache: {fileID: 7837606397448522166}
   speed: 6
+  sprintMultiplier: 1.5
   jumpSpeed: 6
   gravity: -9.81
   cameraHolder: {fileID: 6009062605030630662}
@@ -287,7 +300,7 @@ MonoBehaviour:
   _spectatorInterpolation: 2
   _enableTeleport: 0
   _teleportThreshold: 1
-  <PrefabId>k__BackingField: 4
+  <PrefabId>k__BackingField: 8
   <SpawnableCollectionId>k__BackingField: 0
   <AssetPathHash>k__BackingField: 7807759643866311769
   <SceneId>k__BackingField: 0
@@ -356,8 +369,13 @@ MonoBehaviour:
   _networkObjectCache: {fileID: 7837606397448522166}
   attackRange: 2.5
   damageAmount: 20
+  maxHealth: 100
   respawnDelay: 5
   cameraHolder: {fileID: 6009062605030630662}
+  healthBar: {fileID: 0}
+  deathEffect: {fileID: 0}
+  deathSound: {fileID: 0}
+  spawnPoints: []
 --- !u!1 &5506712535762855421
 GameObject:
   m_ObjectHideFlags: 0

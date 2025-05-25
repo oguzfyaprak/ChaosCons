@@ -1,105 +1,91 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.Events;
 using FishNet.Object;
-using FishNet.Connection;
-using FishNet.Managing.Object;
 using FishNet.Object.Synchronizing;
-using TMPro;
+using System.Collections;
 
-[RequireComponent(typeof(CharacterController))]
-[RequireComponent(typeof(PlayerInput))]
-public class PlayerController : NetworkBehaviour
+namespace Game.Player
 {
-    [Header("Movement Settings")]
-    [SerializeField] private float speed = 6f;
-    [SerializeField] private float jumpSpeed = 6f;
-    [SerializeField] private float gravity = -9.81f;
-
-    [Header("Camera Settings")]
-    [SerializeField] private Transform cameraHolder;
-    [SerializeField] private float mouseSensitivity = 2f;
-    [SerializeField] private float maxPitchAngle = 80f;
-    private float cameraPitch = 0f;
-
-    [Header("Item System")]
-    [SerializeField] private Transform itemHoldPoint;
-    [SerializeField] private float pickupDistance = 3f;
-    [SerializeField] private float throwForce = 2f;
-    private NetworkObject heldItemNetObj;
-    private GameObject heldItem => heldItemNetObj != null ? heldItemNetObj.gameObject : null;
-    private Vector3 lastSentPosition;
-    private Quaternion lastSentRotation;
-
-    private CharacterController characterController;
-    private Vector2 moveInput;
-    private Vector2 lookInput;
-    private Vector3 velocity;
-    private bool isJumping;
-
-    private int deliveredItemCount = 0;
-    private const int winItemCount = 5;
-
-    public string PlayerName { get; private set; } // Normal deðiþken, SyncVar deðil!
-
-    public override void OnStartClient()
+    [RequireComponent(typeof(CharacterController))]
+    public class PlayerController : NetworkBehaviour
     {
-        base.OnStartClient();
+        [Header("Movement Settings")]
+        [SerializeField] private float speed = 6f;
+        [SerializeField] private float sprintMultiplier = 1.5f;
+        [SerializeField] private float jumpSpeed = 6f;
+        [SerializeField] private float gravity = -9.81f;
+        [SerializeField] private float groundCheckDistance = 0.2f;
 
-        if (base.IsOwner)
+        [Header("Camera Settings")]
+        [SerializeField] private Transform cameraHolder;
+        [SerializeField] private float mouseSensitivity = 2f;
+        [SerializeField] private float maxPitchAngle = 80f;
+
+        [Header("Item System")]
+        [SerializeField] private Transform itemHoldPoint;
+        [SerializeField] private float pickupDistance = 3f;
+        [SerializeField] private float throwForce = 2f;
+        [SerializeField] private float itemLerpSpeed = 10f;
+
+        [Header("UI References")]
+        [SerializeField] private GameObject winUI;
+
+        [Header("Events")]
+        public UnityEvent OnItemPickedUp;
+        public UnityEvent OnItemDelivered;
+
+        private NetworkObject heldItemNetObj;
+        private float cameraPitch = 0f;
+        private CharacterController characterController;
+        private Vector2 moveInput;
+        private Vector2 lookInput;
+        private Vector3 velocity;
+        private bool isJumping;
+        private bool isSprinting;
+
+        private readonly SyncVar<int> deliveredItemCount = new();
+        private const int winItemCount = 5;
+
+        public int PlayerID { get; private set; }
+        public string PlayerName { get; private set; }
+        public bool IsHoldingItem => heldItemNetObj != null;
+
+        public override void OnStartClient()
         {
-            string nameFromPrefs = PlayerPrefs.GetString("PlayerName", "Player");
-            SetPlayerNameServerRpc(nameFromPrefs);
-        }
-    }
+            base.OnStartClient();
 
-    [ServerRpc]
-    private void SetPlayerNameServerRpc(string name)
-    {
-        SetPlayerNameObserversRpc(name); // Server aldýktan sonra tüm clientlara gönderiyor
-    }
-
-    [ObserversRpc]
-    private void SetPlayerNameObserversRpc(string name)
-    {
-        PlayerName = name;
-    }
-
-
-    #region Initialization
-    public override void OnStartNetwork()
-    {
-        base.OnStartNetwork();
-
-        if (!base.Owner.IsLocalClient)
-        {
-            DisableCamera();
-        }
-    }
-
-    private void Awake()
-    {
-        characterController = GetComponent<CharacterController>();
-        ValidateComponents();
-    }
-
-    private void ValidateComponents()
-    {
-        if (cameraHolder == null)
-        {
-            Debug.LogError("CameraHolder is not assigned!", this);
-            enabled = false;
-            return;
+            if (base.IsOwner)
+            {
+                string nameFromPrefs = PlayerPrefs.GetString("PlayerName", "Player");
+                int idFromPrefs = PlayerPrefs.GetInt("PlayerID", 0);
+                SetPlayerInfoServerRpc(nameFromPrefs, idFromPrefs);
+            }
+            else
+            {
+                DisableCamera();
+            }
         }
 
-        if (itemHoldPoint == null)
+        [ServerRpc]
+        private void SetPlayerInfoServerRpc(string name, int id)
         {
-            Debug.LogError("ItemHoldPoint is not assigned!", this);
+            SetPlayerInfoObserversRpc(name, id);
         }
-    }
 
-    private void DisableCamera()
-    {
-        if (cameraHolder != null)
+        [ObserversRpc]
+        private void SetPlayerInfoObserversRpc(string name, int id)
+        {
+            PlayerName = name;
+            PlayerID = id;
+        }
+
+        private void Awake()
+        {
+            characterController = GetComponent<CharacterController>();
+        }
+
+        private void DisableCamera()
         {
             Camera cam = cameraHolder.GetComponentInChildren<Camera>();
             if (cam != null) cam.gameObject.SetActive(false);
@@ -107,229 +93,241 @@ public class PlayerController : NetworkBehaviour
             AudioListener audioListener = cameraHolder.GetComponentInChildren<AudioListener>();
             if (audioListener != null) audioListener.enabled = false;
         }
-    }
-    #endregion
 
-    private void Update()
-    {
-        if (!base.IsOwner) return;
-
-        HandleMovement();
-        HandleLook();
-        HandleHeldItem();
-    }
-
-    #region Movement
-    private void HandleMovement()
-    {
-        if (characterController.isGrounded)
+        private void Update()
         {
-            Vector3 move = new Vector3(moveInput.x, 0, moveInput.y);
-            move = transform.TransformDirection(move);
-            velocity = move * speed;
+            if (!base.IsOwner) return;
 
-            if (isJumping)
+            HandleMovement();
+            HandleLook();
+            HandleHeldItem();
+        }
+
+        private void HandleMovement()
+        {
+            if (IsGrounded())
             {
-                velocity.y = jumpSpeed;
-                isJumping = false;
-            }
-        }
+                Vector3 move = transform.TransformDirection(new Vector3(moveInput.x, 0, moveInput.y));
+                float currentSpeed = isSprinting ? speed * sprintMultiplier : speed;
+                velocity = move * currentSpeed;
 
-        velocity.y += gravity * Time.deltaTime;
-        characterController.Move(velocity * Time.deltaTime);
-    }
-
-    private void HandleLook()
-    {
-        float mouseX = lookInput.x * mouseSensitivity;
-        float mouseY = lookInput.y * mouseSensitivity;
-
-        transform.Rotate(Vector3.up * mouseX);
-
-        cameraPitch -= mouseY;
-        cameraPitch = Mathf.Clamp(cameraPitch, -maxPitchAngle, maxPitchAngle);
-        cameraHolder.localRotation = Quaternion.Euler(cameraPitch, 0, 0);
-    }
-    #endregion
-
-    #region Item Handling
-    private void HandleHeldItem()
-    {
-        if (heldItem == null || itemHoldPoint == null) return;
-
-        if (heldItem.TryGetComponent<Rigidbody>(out var rb))
-        {
-            rb.isKinematic = true;
-        }
-
-        Vector3 targetPos = itemHoldPoint.position;
-        Quaternion targetRot = itemHoldPoint.rotation;
-
-        if (Vector3.Distance(lastSentPosition, targetPos) > 0.01f ||
-            Quaternion.Angle(lastSentRotation, targetRot) > 1f)
-        {
-            heldItem.transform.position = targetPos;
-            heldItem.transform.rotation = targetRot;
-
-            lastSentPosition = targetPos;
-            lastSentRotation = targetRot;
-        }
-    }
-
-    private void TryPickupItem()
-    {
-        if (heldItem != null) return;
-
-        Camera cam = cameraHolder.GetComponentInChildren<Camera>();
-        if (cam == null) return;
-
-        Ray ray = new Ray(cam.transform.position, cam.transform.forward);
-        if (Physics.Raycast(ray, out RaycastHit hit, pickupDistance))
-        {
-            NetworkObject itemNetObj = hit.collider.GetComponent<NetworkObject>();
-            if (itemNetObj != null && !itemNetObj.Owner.IsValid)
-            {
-                PickupItemServerRpc(itemNetObj);
-            }
-        }
-    }
-
-    private void TryDropItem()
-    {
-        if (heldItem == null) return;
-        DropItemServerRpc();
-    }
-
-    [ServerRpc]
-    private void PickupItemServerRpc(NetworkObject item)
-    {
-        if (item == null || item.Owner.IsValid) return;
-
-        // Store original kinematic state
-        if (item.TryGetComponent<ItemProperties>(out var itemProps))
-        {
-            itemProps.OriginalKinematicState = item.GetComponent<Rigidbody>().isKinematic;
-        }
-
-        item.GiveOwnership(base.Owner);
-        SetHeldItem(item);
-    }
-
-    [ServerRpc]
-    private void DropItemServerRpc()
-    {
-        if (heldItemNetObj == null) return;
-
-        // Restore original kinematic state
-        if (heldItemNetObj.TryGetComponent<ItemProperties>(out var itemProps))
-        {
-            if (heldItemNetObj.TryGetComponent<Rigidbody>(out var rb))
-            {
-                rb.isKinematic = itemProps.OriginalKinematicState;
-                if (!rb.isKinematic)
+                if (isJumping)
                 {
-                    rb.linearVelocity = transform.forward * throwForce;
+                    velocity.y = jumpSpeed;
+                    isJumping = false;
+                }
+            }
+
+            velocity.y += gravity * Time.deltaTime;
+            characterController.Move(velocity * Time.deltaTime);
+        }
+
+        private bool IsGrounded()
+        {
+            Ray ray = new Ray(transform.position + Vector3.up * 0.1f, Vector3.down);
+            bool hit = Physics.Raycast(ray, out RaycastHit hitInfo, 1.2f);
+            Debug.DrawRay(ray.origin, ray.direction * 1.2f, hit ? Color.green : Color.red, 1f);
+            return hit;
+        }
+
+        private void HandleLook()
+        {
+            transform.Rotate(Vector3.up * lookInput.x * mouseSensitivity);
+            cameraPitch -= lookInput.y * mouseSensitivity;
+            cameraPitch = Mathf.Clamp(cameraPitch, -maxPitchAngle, maxPitchAngle);
+            cameraHolder.localRotation = Quaternion.Euler(cameraPitch, 0, 0);
+        }
+
+        private void HandleHeldItem()
+        {
+            if (!IsHoldingItem || itemHoldPoint == null) return;
+
+            heldItemNetObj.transform.position = Vector3.Lerp(
+                heldItemNetObj.transform.position,
+                itemHoldPoint.position,
+                itemLerpSpeed * Time.deltaTime);
+
+            heldItemNetObj.transform.rotation = Quaternion.Lerp(
+                heldItemNetObj.transform.rotation,
+                itemHoldPoint.rotation,
+                itemLerpSpeed * Time.deltaTime);
+        }
+
+        private void TryPickupItem()
+        {
+            if (IsHoldingItem) return;
+
+            Camera cam = cameraHolder.GetComponentInChildren<Camera>();
+            if (cam == null) return;
+
+            Ray ray = new Ray(cam.transform.position, cam.transform.forward);
+            Debug.DrawRay(ray.origin, ray.direction * pickupDistance, Color.red, 1f); // Debug Ã§izgisi
+
+            if (Physics.Raycast(ray, out RaycastHit hit, pickupDistance))
+            {
+                Debug.Log($"Raycast hit: {hit.collider.name}"); // Hangi objeye Ã§arptÄ±ÄŸÄ±nÄ± logla
+
+                if (hit.collider.TryGetComponent<NetworkObject>(out var itemNetObj))
+                {
+                    Debug.Log($"Found NetworkObject - Owner: {itemNetObj.Owner}, IsValid: {itemNetObj.Owner.IsValid}");
+
+                    // Sahipsiz eÅŸyalarÄ± al
+                    if (!itemNetObj.Owner.IsValid)
+                    {
+                        Debug.Log("Attempting to pickup item");
+                        StartCoroutine(PickupItemWithAnimation(itemNetObj));
+                    }
                 }
             }
         }
 
-        heldItemNetObj.RemoveOwnership();
-        ClearHeldItem();
-    }
-
-    [ObserversRpc]
-    private void SetHeldItem(NetworkObject item)
-    {
-        heldItemNetObj = item;
-
-        if (heldItem != null && itemHoldPoint != null)
+        private IEnumerator PickupItemWithAnimation(NetworkObject item)
         {
-            heldItem.transform.SetParent(itemHoldPoint);
-            heldItem.transform.localPosition = Vector3.zero;
-            heldItem.transform.localRotation = Quaternion.identity;
+            PickupItemServerRpc(item);
+            OnItemPickedUp?.Invoke();
+
+            float duration = 0.3f;
+            float elapsed = 0f;
+            Vector3 startPos = item.transform.position;
+            Quaternion startRot = item.transform.rotation;
+
+            while (elapsed < duration)
+            {
+                if (item == null) yield break;
+
+                item.transform.position = Vector3.Lerp(startPos, itemHoldPoint.position, elapsed / duration);
+                item.transform.rotation = Quaternion.Lerp(startRot, itemHoldPoint.rotation, elapsed / duration);
+                elapsed += Time.deltaTime;
+                yield return null;
+            }
+
+            // Son pozisyonu garantiye al
+            if (item != null && itemHoldPoint != null)
+            {
+                item.transform.position = itemHoldPoint.position;
+                item.transform.rotation = itemHoldPoint.rotation;
+            }
+        }
+
+        [ServerRpc(RequireOwnership = false)]
+        private void PickupItemServerRpc(NetworkObject item)
+        {
+            if (item == null || item.Owner.IsValid) return;
+
+            Debug.Log($"Server picking up item: {item.name}");
+
+            // Item'Ä±n orijinal kinematic durumunu kaydet
+            if (item.TryGetComponent<Rigidbody>(out var rb))
+            {
+                if (!item.TryGetComponent<ItemProperties>(out var itemProps))
+                {
+                    itemProps = item.gameObject.AddComponent<ItemProperties>();
+                }
+                itemProps.OriginalKinematicState = rb.isKinematic;
+                rb.isKinematic = true;
+            }
+
+            item.GiveOwnership(base.Owner);
+            SetHeldItem(item);
+        }
+
+        private void TryDropItem()
+        {
+            if (!IsHoldingItem) return;
+            DropItemServerRpc();
+        }
+
+        [ServerRpc]
+        private void DropItemServerRpc()
+        {
+            if (!IsHoldingItem) return;
+
+            if (heldItemNetObj.TryGetComponent<ItemProperties>(out var itemProps) &&
+                heldItemNetObj.TryGetComponent<Rigidbody>(out var rb))
+            {
+                rb.isKinematic = itemProps.OriginalKinematicState;
+            }
+
+            heldItemNetObj.RemoveOwnership();
+            ClearHeldItem();
+        }
+
+        [ObserversRpc]
+        private void SetHeldItem(NetworkObject item)
+        {
+            heldItemNetObj = item;
+            if (IsHoldingItem)
+            {
+                heldItemNetObj.transform.SetParent(itemHoldPoint);
+            }
+        }
+
+        [ObserversRpc]
+        private void ClearHeldItem()
+        {
+            if (IsHoldingItem)
+            {
+                heldItemNetObj.transform.SetParent(null);
+                heldItemNetObj = null;
+            }
+        }
+
+        [Server]
+        public void DeliverHeldItem()
+        {
+            if (!IsHoldingItem) return;
+
+            heldItemNetObj.Despawn();
+            ClearHeldItem();
+
+            deliveredItemCount.Value++;
+            OnItemDelivered?.Invoke();
+
+            if (deliveredItemCount.Value >= winItemCount)
+            {
+                RpcShowWinMessage();
+            }
+        }
+
+        [ObserversRpc]
+        private void RpcShowWinMessage()
+        {
+            if (base.IsOwner && winUI != null)
+            {
+                winUI.SetActive(true);
+            }
+        }
+
+        public void OnMove(InputAction.CallbackContext context)
+        {
+            if (base.IsOwner) moveInput = context.ReadValue<Vector2>();
+        }
+
+        public void OnLook(InputAction.CallbackContext context)
+        {
+            if (base.IsOwner) lookInput = context.ReadValue<Vector2>();
+        }
+
+        public void OnJump(InputAction.CallbackContext context)
+        {
+            if (base.IsOwner && context.started && IsGrounded())
+                isJumping = true;
+        }
+
+        public void OnInteract(InputAction.CallbackContext context)
+        {
+            if (!base.IsOwner || !context.started) return;
+
+            if (!IsHoldingItem)
+                TryPickupItem();
+            else
+                TryDropItem();
+        }
+
+        public void OnSprint(InputAction.CallbackContext context)
+        {
+            if (base.IsOwner)
+                isSprinting = context.ReadValueAsButton();
         }
     }
-
-    [ObserversRpc]
-    private void ClearHeldItem()
-    {
-        if (heldItem != null)
-        {
-            heldItem.transform.SetParent(null);
-        }
-        heldItemNetObj = null;
-    }
-
-    public bool HasHeldItem() => heldItem != null;
-
-    [ServerRpc]
-    public void DeliverHeldItem()
-    {
-        if (heldItemNetObj == null) return;
-
-        heldItemNetObj.Despawn();
-        ClearHeldItem();
-
-        deliveredItemCount++;
-
-        Debug.Log($"[PlayerController] Teslim edilen item sayýsý: {deliveredItemCount}");
-
-        if (deliveredItemCount >= winItemCount)
-        {
-            RpcShowWinMessage();
-        }
-    }
-
-    [ObserversRpc]
-    private void RpcShowWinMessage()
-    {
-        if (!base.IsOwner) return; 
-
-        Debug.Log(" Kazandýn! ");
-
-        
-    }
-
-
-    #endregion
-
-    #region Input Handling
-    public void OnMove(InputAction.CallbackContext context)
-    {
-        if (!base.IsOwner) return;
-        moveInput = context.ReadValue<Vector2>();
-    }
-
-    public void OnLook(InputAction.CallbackContext context)
-    {
-        if (!base.IsOwner) return;
-        lookInput = context.ReadValue<Vector2>();
-    }
-
-    public void OnJump(InputAction.CallbackContext context)
-    {
-        if (!base.IsOwner || !context.started) return;
-        isJumping = true;
-    }
-
-    public void OnInteract(InputAction.CallbackContext context)
-    {
-        if (!base.IsOwner || !context.started) return;
-
-        if (heldItem == null)
-        {
-            TryPickupItem();
-        }
-        else
-        {
-            TryDropItem();
-        }
-    }
-    #endregion
-}
-
-// Helper class for item properties
-public class ItemProperties : MonoBehaviour
-{
-    [HideInInspector] public bool OriginalKinematicState;
 }

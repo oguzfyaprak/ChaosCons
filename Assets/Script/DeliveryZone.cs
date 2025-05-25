@@ -1,104 +1,86 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 using FishNet.Object;
+using FishNet.Object.Synchronizing;
+using Game.Player; // EÄŸer PlayerController burada ise
+// using FishNet.Example.Scened; // ArtÄ±k gerekli deÄŸilse kaldÄ±rabilirsin
 
-public class DeliveryZone : NetworkBehaviour
+namespace Game.Building
 {
-    [Header("Bina Sistemi")]
-    [SerializeField] private Transform buildingRoot;
-    [SerializeField] private GameObject[] buildingStages;
-    private int currentStage = 0;
-
-    private void OnTriggerEnter(Collider other)
+    public class DeliveryZone : NetworkBehaviour
     {
-        Debug.Log($"[DeliveryZone] Trigger'a bir þey girdi: {other.name}");
+        [Header("Bina AyarlarÄ±")]
+        [SerializeField] private int ownerPlayerID;
+        [SerializeField] private Transform buildingRoot;
+        [SerializeField] private GameObject[] buildingStages;
+        [SerializeField] private float floorHeight = 1.5f;
 
-        if (!base.IsServerInitialized)
+        [Header("Tamamlama Efektleri")]
+        [SerializeField] private ParticleSystem completionEffect;
+        [SerializeField] private AudioClip completionSound;
+
+        private readonly SyncVar<int> currentStage = new(); //  SyncVar yerine SyncVar<int>
+
+        [Server]
+        public void SetOwnerID(int id)
         {
-            Debug.LogWarning("[DeliveryZone] Sunucu initialized deðil!");
-            return;
+            ownerPlayerID = id;
         }
 
-        NetworkObject item = other.GetComponent<NetworkObject>();
-        if (item == null)
+        private void OnTriggerEnter(Collider other)
         {
-            Debug.LogWarning("[DeliveryZone] NetworkObject bulunamadý!");
-            return;
+            if (!IsValidCollision(other)) return;
+
+            NetworkObject item = other.GetComponent<NetworkObject>();
+            PlayerController player = item.Owner?.FirstObject?.GetComponent<PlayerController>();
+
+            if (player != null && player.PlayerID == ownerPlayerID)
+            {
+                player.DeliverHeldItem();
+                AdvanceBuildingStage();
+            }
         }
 
-        Debug.Log($"[DeliveryZone] NetworkObject bulundu: {item.name}");
-
-        if (!item.CompareTag("Item"))
+        private bool IsValidCollision(Collider other)
         {
-            Debug.LogWarning($"[DeliveryZone] Eþya tag'i 'Item' deðil! Tag: {item.tag}");
-            return;
+            if (!base.IsServerInitialized) return false;
+            if (!other.CompareTag("Item")) return false;
+            if (!other.TryGetComponent<NetworkObject>(out var netObj)) return false;
+            return netObj.Owner != null;
         }
 
-        Debug.Log("[DeliveryZone] Tag 'Item' ile eþleþti, iþlem devam ediyor.");
-
-        PlayerController player = item.Owner?.FirstObject?.GetComponent<PlayerController>();
-        if (player == null)
+        [Server]
+        private void AdvanceBuildingStage()
         {
-            Debug.LogWarning("[DeliveryZone] Player bulunamadý (Owner null veya yanlýþ atanmýþ).");
-            return;
+            if (currentStage.Value >= buildingStages.Length) return;
+            if (buildingRoot == null) return;
+
+            GameObject stagePrefab = buildingStages[currentStage.Value];
+            if (stagePrefab == null) return;
+
+            Vector3 spawnPosition = buildingRoot.position + Vector3.up * (currentStage.Value * floorHeight);
+            GameObject newStage = Instantiate(stagePrefab, spawnPosition, Quaternion.identity, buildingRoot);
+
+            if (newStage.TryGetComponent<NetworkObject>(out var netObj))
+            {
+                Spawn(netObj);
+            }
+
+            currentStage.Value++;
+
+            if (currentStage.Value >= buildingStages.Length)
+            {
+                RpcPlayCompletionEffects();
+            }
         }
 
-        Debug.Log($"[DeliveryZone] Player bulundu: {player.name}");
-
-        player.DeliverHeldItem();
-
-        Debug.Log("[DeliveryZone] DeliverHeldItem çaðrýldý, þimdi bina ilerletiliyor.");
-        AdvanceBuildingStage();
-    }
-
-    [Server]
-    private void AdvanceBuildingStage()
-    {
-        Debug.Log($"[AdvanceBuildingStage] Çaðrýldý! Þu anki kat: {currentStage}");
-
-        if (currentStage >= buildingStages.Length)
+        [ObserversRpc]
+        private void RpcPlayCompletionEffects()
         {
-            Debug.LogWarning("[AdvanceBuildingStage] Tüm katlar tamamlandý.");
-            return;
-        }
+            if (completionEffect != null)
+                Instantiate(completionEffect, transform.position, Quaternion.identity);
 
-        if (buildingRoot == null)
-        {
-            Debug.LogError("[AdvanceBuildingStage] BuildingRoot atanmamýþ!");
-            return;
-        }
-
-        GameObject stagePrefab = buildingStages[currentStage];
-        if (stagePrefab == null)
-        {
-            Debug.LogError($"[AdvanceBuildingStage] buildingStages[{currentStage}] prefab atanmadý!");
-            return;
-        }
-
-        // Yeni: Her kat için yüksekliði hesapla (currentStage * kat yüksekliði)
-        float yOffset = currentStage * 1.0f; // Her kat için 1 birim yukarý
-        Vector3 spawnPosition = buildingRoot.position + new Vector3(0, yOffset, 0);
-
-        Debug.Log($"[AdvanceBuildingStage] Kat prefabý instantiate ediliyor: {stagePrefab.name}, Pozisyon: {spawnPosition}");
-
-        // Yeni pozisyonu kullan
-        GameObject newStage = Instantiate(stagePrefab, spawnPosition, Quaternion.identity, buildingRoot);
-        NetworkObject netObj = newStage.GetComponent<NetworkObject>();
-
-        if (netObj != null)
-        {
-            Spawn(netObj);
-            Debug.Log("[AdvanceBuildingStage] NetworkObject baþarýyla spawn edildi.");
-        }
-        else
-        {
-            Debug.LogWarning("[AdvanceBuildingStage] Yeni kat prefabýnda NetworkObject component yok!");
-        }
-
-        currentStage++;
-
-        if (currentStage >= buildingStages.Length)
-        {
-            Debug.Log("Bina tamamlandý!");
+            if (completionSound != null)
+                AudioSource.PlayClipAtPoint(completionSound, transform.position);
         }
     }
 }
