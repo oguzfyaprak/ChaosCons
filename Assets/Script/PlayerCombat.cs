@@ -1,4 +1,4 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 using FishNet.Object;
 using FishNet.Connection;
 using FishNet.Object.Synchronizing;
@@ -35,8 +35,8 @@ public class PlayerCombat : NetworkBehaviour
 
         if (spawnPoints == null || spawnPoints.Length == 0)
         {
-            Debug.LogWarning("SpawnPoints atanmadý. Sahnedeki PlayerSpawner'dan alýnacak.");
-            
+            Debug.LogWarning("SpawnPoints atanmadÃ½. Sahnedeki PlayerSpawner'dan alÃ½nacak.");
+
         }
     }
 
@@ -59,7 +59,7 @@ public class PlayerCombat : NetworkBehaviour
         }
     }
 
-    // === Hasar alma ===
+   
     [Server]
     public void TakeDamage(int amount)
     {
@@ -77,7 +77,6 @@ public class PlayerCombat : NetworkBehaviour
         }
     }
 
-    // === Diðer oyuncuya saldýrý ===
     [Server]
     public void TryAttack()
     {
@@ -93,7 +92,7 @@ public class PlayerCombat : NetworkBehaviour
         }
     }
 
-    // === Server'da yeniden doðma ===
+ 
     [Server]
     private IEnumerator ServerRespawnRoutine()
     {
@@ -109,7 +108,7 @@ public class PlayerCombat : NetworkBehaviour
         }
         else
         {
-            Debug.LogWarning("SpawnPoint bulunamadý, (0,0,0)'a konumlandý.");
+            Debug.LogWarning("SpawnPoint bulunamadÃ½, (0,0,0)'a konumlandÃ½.");
             transform.position = Vector3.zero;
         }
 
@@ -118,7 +117,7 @@ public class PlayerCombat : NetworkBehaviour
         RpcOnRespawn(currentHealth);
     }
 
-    // === RPC'ler ===
+
     [ObserversRpc]
     private void RpcUpdateHealth(int newHealth)
     {

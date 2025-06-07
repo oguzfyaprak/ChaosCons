@@ -24,6 +24,7 @@ namespace Game.Building
         public void SetOwnerID(int id)
         {
             ownerPlayerID = id;
+            Debug.Log($"DeliveryZone assigned to player ID {id}");
         }
 
         private void OnTriggerEnter(Collider other)
@@ -31,9 +32,11 @@ namespace Game.Building
             if (!IsValidCollision(other)) return;
 
             NetworkObject item = other.GetComponent<NetworkObject>();
-            PlayerController player = item.Owner?.FirstObject?.GetComponent<PlayerController>();
 
-            if (player != null && player.PlayerID == ownerPlayerID)
+            // Oyuncuyu çarpan collider'ın parent'larından bul
+            PlayerController player = other.GetComponentInParent<PlayerController>();
+
+            if (player != null && player.PlayerID == ownerPlayerID && player.IsHoldingItem)
             {
                 player.DeliverHeldItem();
                 AdvanceBuildingStage();

@@ -66,6 +66,11 @@ namespace Game.Player
                 DisableCamera();
             }
         }
+        public override void OnStartServer()
+        {
+            base.OnStartServer();
+            Debug.Log($"[SERVER] Player {Owner.ClientId} assigned PlayerID: {PlayerID}");
+        }
 
         [ServerRpc]
         private void SetPlayerInfoServerRpc(string name, int id)

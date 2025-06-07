@@ -247,15 +247,24 @@ MonoBehaviour:
   _addedNetworkObject: {fileID: 7837606397448522166}
   _networkObjectCache: {fileID: 7837606397448522166}
   speed: 6
-  sprintMultiplier: 1.5
+  sprintMultiplier: 15
   jumpSpeed: 6
   gravity: -9.81
+  groundCheckDistance: 0.2
   cameraHolder: {fileID: 6009062605030630662}
   mouseSensitivity: 2
   maxPitchAngle: 80
   itemHoldPoint: {fileID: 4081024044302862327}
   pickupDistance: 3
-  throwForce: 5
+  throwForce: 2
+  itemLerpSpeed: 10
+  winUI: {fileID: 0}
+  OnItemPickedUp:
+    m_PersistentCalls:
+      m_Calls: []
+  OnItemDelivered:
+    m_PersistentCalls:
+      m_Calls: []
 --- !u!114 &7837606397448522166
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -376,6 +385,7 @@ MonoBehaviour:
   deathEffect: {fileID: 0}
   deathSound: {fileID: 0}
   spawnPoints: []
+  playerController: {fileID: 0}
 --- !u!1 &5506712535762855421
 GameObject:
   m_ObjectHideFlags: 0
