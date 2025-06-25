@@ -1,8 +1,7 @@
 ﻿using UnityEngine;
 using FishNet.Object;
 using FishNet.Object.Synchronizing;
-using Game.Player; // Eğer PlayerController burada ise
-// using FishNet.Example.Scened; // Artık gerekli değilse kaldırabilirsin
+using FishNet.Managing;
 
 namespace Game.Building
 {
@@ -18,67 +17,111 @@ namespace Game.Building
         [SerializeField] private ParticleSystem completionEffect;
         [SerializeField] private AudioClip completionSound;
 
-        private readonly SyncVar<int> currentStage = new(); //  SyncVar yerine SyncVar<int>
+        private readonly SyncVar<int> currentStage = new SyncVar<int>();
+        private NetworkManager networkManager;
+
+        private void Awake()
+        {
+            networkManager = FindFirstObjectByType<NetworkManager>();
+            if (networkManager == null)
+                Debug.LogError(" NetworkManager bulunamadı! DeliveryZone çalışmayacak.");
+
+            currentStage.OnChange += OnStageChanged;
+        }
+
+        private void OnDestroy()
+        {
+            currentStage.OnChange -= OnStageChanged;
+        }
 
         [Server]
         public void SetOwnerID(int id)
         {
             ownerPlayerID = id;
-            Debug.Log($"DeliveryZone assigned to player ID {id}");
+            Debug.Log($" DeliveryZone assigned to player ID {id}");
         }
 
         private void OnTriggerEnter(Collider other)
         {
-            if (!IsValidCollision(other)) return;
+            if (!IsServerInitialized) return;
+            if (!other.CompareTag("Item")) return;
 
-            NetworkObject item = other.GetComponent<NetworkObject>();
+            if (!other.TryGetComponent(out NetworkObject netObj)) return;
+            if (!other.TryGetComponent(out ItemProperties itemProps)) return;
 
-            // Oyuncuyu çarpan collider'ın parent'larından bul
-            PlayerController player = other.GetComponentInParent<PlayerController>();
+            Debug.Log($" DeliveryZone owner: {ownerPlayerID}, Item owner: {itemProps.ownerPlayerID.Value}");
 
-            if (player != null && player.PlayerID == ownerPlayerID && player.IsHoldingItem)
+            if (itemProps.ownerPlayerID.Value == ownerPlayerID)
             {
-                player.DeliverHeldItem();
+                Debug.Log(" AdvanceBuildingStage çağrılıyor");
                 AdvanceBuildingStage();
-            }
-        }
 
-        private bool IsValidCollision(Collider other)
-        {
-            if (!base.IsServerInitialized) return false;
-            if (!other.CompareTag("Item")) return false;
-            if (!other.TryGetComponent<NetworkObject>(out var netObj)) return false;
-            return netObj.Owner != null;
+                if (netObj != null && netObj.IsSpawned)
+                {
+                    // Component'leri devre dışı bırak (gerekirse)
+                    foreach (var comp in netObj.GetComponents<NetworkBehaviour>())
+                        comp.enabled = false;
+
+                    networkManager.ServerManager.Despawn(netObj, FishNet.Object.DespawnType.Destroy);
+                    Debug.Log($" Item despawn edildi: {netObj.name}");
+                }
+                else
+                {
+                    Debug.LogWarning($" Despawn edilmek istenen obje zaten despawn edilmiş veya null: {netObj?.name}");
+                }
+            }
+            else
+            {
+                Debug.Log($" Yanlış bölge: Item owner {itemProps.ownerPlayerID.Value} -> Zone owner {ownerPlayerID}");
+            }
         }
 
         [Server]
         private void AdvanceBuildingStage()
         {
             if (currentStage.Value >= buildingStages.Length) return;
-            if (buildingRoot == null) return;
-
-            GameObject stagePrefab = buildingStages[currentStage.Value];
-            if (stagePrefab == null) return;
-
-            Vector3 spawnPosition = buildingRoot.position + Vector3.up * (currentStage.Value * floorHeight);
-            GameObject newStage = Instantiate(stagePrefab, spawnPosition, Quaternion.identity, buildingRoot);
-
-            if (newStage.TryGetComponent<NetworkObject>(out var netObj))
-            {
-                Spawn(netObj);
-            }
 
             currentStage.Value++;
+            Debug.Log($" Bina stage ilerledi: {currentStage.Value}");
+
+            SpawnCurrentStage();
 
             if (currentStage.Value >= buildingStages.Length)
             {
-                RpcPlayCompletionEffects();
+                RpcCompletionEffects();
             }
         }
 
-        [ObserversRpc]
-        private void RpcPlayCompletionEffects()
+        [Server]
+        private void SpawnCurrentStage()
         {
+            Vector3 pos = buildingRoot.position + Vector3.up * ((currentStage.Value - 1) * floorHeight);
+            GameObject stage = Instantiate(buildingStages[currentStage.Value - 1], pos, Quaternion.identity);
+
+            if (stage.TryGetComponent(out NetworkObject netObj))
+            {
+                networkManager.ServerManager.Spawn(netObj);
+                Debug.Log($" Kat spawn edildi: {netObj.name}, ObjectID: {netObj.ObjectId}, IsGlobal: {netObj.IsGlobal}");
+            }
+            else
+            {
+                Debug.LogError(" NetworkObject eksik prefab!");
+            }
+        }
+
+        private void OnStageChanged(int prev, int next, bool asServer)
+        {
+            if (asServer) return;
+
+            Debug.Log($" Client stage değişti: {prev} -> {next}");
+            // UI güncellemeleri, sesler, efektler burada yapılabilir
+        }
+
+        [ObserversRpc]
+        private void RpcCompletionEffects()
+        {
+            Debug.Log(" Completion effects played on all clients");
+
             if (completionEffect != null)
                 Instantiate(completionEffect, transform.position, Quaternion.identity);
 

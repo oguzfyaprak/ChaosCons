@@ -1,6 +1,7 @@
+using FishNet.Managing;
 using UnityEngine;
 
-public class GameManager
+public class GameManager : MonoBehaviour
 {
-    
 }
+
