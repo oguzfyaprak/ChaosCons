@@ -4,6 +4,7 @@ using FishNet.Object;
 using FishNet.Object.Synchronizing;
 using System.Collections;
 
+
 namespace Game.Player
 {
     [RequireComponent(typeof(CharacterController))]
@@ -33,6 +34,7 @@ namespace Game.Player
         private bool isJumping;
         private bool isSprinting;
         private NetworkObject heldItem;
+       
 
         public int PlayerID { get; private set; }
         private static int playerIdCounter = 0;
@@ -41,7 +43,9 @@ namespace Game.Player
         {
             base.OnStartServer();
             PlayerID = playerIdCounter++;
+            PlayerRegistry.Register(PlayerID, Owner); // ← burası önemli!
             Debug.Log($"[SERVER] Player {Owner.ClientId} assigned PlayerID: {PlayerID}");
+
         }
 
         private void Awake()

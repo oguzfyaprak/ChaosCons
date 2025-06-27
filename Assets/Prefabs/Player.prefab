@@ -15,6 +15,7 @@ GameObject:
   - component: {fileID: 7837606397448522166}
   - component: {fileID: 952323190401503524}
   - component: {fileID: 6876696796278172571}
+  - component: {fileID: -2888932976227972280}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -226,7 +227,7 @@ MonoBehaviour:
       m_Calls: []
     m_ActionId: 9caa3d8a-6b2f-4e8e-8bad-6ede561bd9be
     m_ActionName: UI/TrackedDeviceOrientation
-  m_NeverAutoSwitchControlSchemes: 1
+  m_NeverAutoSwitchControlSchemes: 0
   m_DefaultControlScheme: Keyboard&Mouse
   m_DefaultActionMap: Player
   m_SplitScreenIndex: -1
@@ -250,21 +251,12 @@ MonoBehaviour:
   sprintMultiplier: 15
   jumpSpeed: 6
   gravity: -9.81
-  groundCheckDistance: 0.2
   cameraHolder: {fileID: 6009062605030630662}
   mouseSensitivity: 2
   maxPitchAngle: 80
   itemHoldPoint: {fileID: 4081024044302862327}
   pickupDistance: 3
-  throwForce: 2
   itemLerpSpeed: 10
-  winUI: {fileID: 0}
-  OnItemPickedUp:
-    m_PersistentCalls:
-      m_Calls: []
-  OnItemDelivered:
-    m_PersistentCalls:
-      m_Calls: []
 --- !u!114 &7837606397448522166
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -285,6 +277,7 @@ MonoBehaviour:
   - {fileID: 7696843365788201444}
   - {fileID: 952323190401503524}
   - {fileID: 6876696796278172571}
+  - {fileID: -2888932976227972280}
   InitializedParentNetworkBehaviour: {fileID: 0}
   InitializedNestedNetworkObjects: []
   RuntimeParentNetworkBehaviour: {fileID: 0}
@@ -386,6 +379,26 @@ MonoBehaviour:
   deathSound: {fileID: 0}
   spawnPoints: []
   playerController: {fileID: 0}
+--- !u!114 &-2888932976227972280
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2056877680756426071}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3acfd737d9726a04f8d94108ef988ed3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _componentIndexCache: 3
+  _addedNetworkObject: {fileID: 7837606397448522166}
+  _networkObjectCache: {fileID: 7837606397448522166}
+  sabotageRange: 10
+  sabotageDuration: 5
+  buildingLayer:
+    serializedVersion: 2
+    m_Bits: 64
 --- !u!1 &5506712535762855421
 GameObject:
   m_ObjectHideFlags: 0

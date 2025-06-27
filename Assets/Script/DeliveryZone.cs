@@ -128,5 +128,40 @@ namespace Game.Building
             if (completionSound != null)
                 AudioSource.PlayClipAtPoint(completionSound, transform.position);
         }
+
+        [Server]
+        public void ApplySabotage()
+        {
+            if (currentStage.Value <= 0)
+            {
+                Debug.Log("No stage to sabotage.");
+                return;
+            }
+
+            int lastIndex = currentStage.Value - 1;
+            string lastStageName = $"Stage{lastIndex + 1}"; // Çünkü sen 1'den başlatıyorsun
+
+            Transform lastStage = buildingRoot.Find(lastStageName);
+            if (lastStage != null && lastStage.TryGetComponent(out NetworkObject netObj))
+            {
+                currentStage.Value--;
+                networkManager.ServerManager.Despawn(netObj, DespawnType.Destroy);
+                Debug.Log($"Stage sabotaged and despawned: {lastStageName}");
+            }
+            else
+            {
+                Debug.LogWarning($"Sabotaj için stage bulunamadı: {lastStageName}");
+            }
+        }
+
+        public int GetOwnerID()
+        {
+            return ownerPlayerID;
+        }
+
+        public bool IsCompleted()
+        {
+            return currentStage.Value >= buildingStages.Length;
+        }
     }
 }
