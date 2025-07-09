@@ -1,5 +1,4 @@
 ﻿using UnityEngine;
-using UnityEngine.UI; // <-- Normal UI Text için gerekli
 using FishNet.Object;
 using FishNet.Connection;
 using Game.Building;
@@ -9,30 +8,11 @@ namespace Game.Player
     public class SabotageSystem : NetworkBehaviour
     {
         [SerializeField] private float sabotageDuration = 5f;
-        [SerializeField] private Text sabotageHintText; // <-- TMP yerine Text
 
         private bool isSabotaging = false;
         private float sabotageTimer = 0f;
 
         private DeliveryZone currentNearbyZone;
-
-        public override void OnStartClient()
-        {
-            base.OnStartClient();
-
-            if (!IsOwner) return;
-
-            GameObject txtObj = GameObject.Find("SabotajText"); // Sahnedeki yazı objesinin ismi
-            if (txtObj != null)
-            {
-                sabotageHintText = txtObj.GetComponent<Text>();
-                Debug.Log(" sabotageHintText bağlandı.");
-            }
-            else
-            {
-                Debug.LogWarning(" sabotageHintText bulunamadı! Obje adı doğru mu?");
-            }
-        }
 
         private void Update()
         {
@@ -40,25 +20,18 @@ namespace Game.Player
 
             if (currentNearbyZone != null && !isSabotaging)
             {
-                if (sabotageHintText != null)
-                    sabotageHintText.gameObject.SetActive(true);
-
                 if (Input.GetKeyDown(KeyCode.Q))
                 {
+                    Debug.Log("⌨️ Q tuşuna basıldı, sabotaj başlatılıyor.");
                     sabotageTimer = 0f;
                     isSabotaging = true;
-                    Debug.Log("[CLIENT] Sabotaj başlatıldı!");
                 }
-            }
-            else
-            {
-                if (sabotageHintText != null)
-                    sabotageHintText.gameObject.SetActive(false);
             }
 
             if (isSabotaging)
             {
                 sabotageTimer += Time.deltaTime;
+                Debug.Log($"⏳ Sabotaj süresi: {sabotageTimer:F2}");
 
                 if (sabotageTimer >= sabotageDuration)
                 {
@@ -68,6 +41,7 @@ namespace Game.Player
                     if (currentNearbyZone != null)
                     {
                         int targetID = currentNearbyZone.GetOwnerID();
+                        Debug.Log($"🎯 Sabotaj tamamlandı. Hedef PlayerID: {targetID}");
                         CmdApplySabotage(targetID);
                         currentNearbyZone = null;
                     }
@@ -79,16 +53,23 @@ namespace Game.Player
         {
             if (!IsOwner) return;
 
-            if (other.CompareTag("SabotajZone") &&
+            Debug.Log($"🚪 Trigger Enter: {other.name}");
+
+            if (other.CompareTag("DeliveryZone") &&
                 other.TryGetComponent(out DeliveryZone zone))
             {
                 int myID = GetComponent<PlayerController>().PlayerID;
                 int zoneID = zone.GetOwnerID();
+                Debug.Log($"🔍 Trigger ZoneID: {zoneID} | MyID: {myID}");
 
-                if (zoneID != myID && zone.IsCompleted())
+                if (zoneID != myID && zone.IsCompleted() && !zone.IsDamaged())
                 {
                     currentNearbyZone = zone;
-                    Debug.Log($"[CLIENT] Sabotaj yapılabilir bölgeye girdin. Hedef ID: {zoneID}");
+                    Debug.Log($"✅ Sabotaj yapılabilir bölgeye girdin. Hedef ID: {zoneID}");
+                }
+                else
+                {
+                    Debug.Log("⛔️ Bu bölge sana ait ya da zaten hasarlı.");
                 }
             }
         }
@@ -100,26 +81,28 @@ namespace Game.Player
             if (other.TryGetComponent(out DeliveryZone zone) && zone == currentNearbyZone)
             {
                 currentNearbyZone = null;
-                if (sabotageHintText != null)
-                    sabotageHintText.gameObject.SetActive(false);
-                Debug.Log("[CLIENT] Sabotaj bölgesinden çıktın.");
+                Debug.Log("📤 Sabotaj bölgesinden çıktın.");
             }
         }
 
         [ServerRpc]
         private void CmdApplySabotage(int targetID)
         {
+            Debug.Log($"🛠️ [SERVER] CmdApplySabotage çağrıldı. TargetID: {targetID}");
+
             DeliveryZone[] allZones = FindObjectsByType<DeliveryZone>(FindObjectsSortMode.None);
             foreach (var zone in allZones)
             {
-                if (zone.GetOwnerID() == targetID && zone.IsCompleted())
+                if (zone.GetOwnerID() == targetID && zone.IsCompleted() && !zone.IsDamaged())
                 {
                     zone.ApplySabotage();
-                    Debug.Log($"[SERVER] Sabotaj uygulandı. Hedef PlayerID: {targetID}");
+                    Debug.Log($"💣 Sabotaj uygulandı. PlayerID: {targetID}");
 
                     NetworkConnection conn = PlayerRegistry.GetConnectionByPlayerID(targetID);
                     if (conn != null)
                         TargetNotifySabotaged(conn);
+                    else
+                        Debug.LogWarning("⚠️ PlayerConnection bulunamadı!");
                 }
             }
         }
@@ -127,7 +110,7 @@ namespace Game.Player
         [TargetRpc]
         private void TargetNotifySabotaged(NetworkConnection conn)
         {
-            Debug.Log("[CLIENT] Binana sabotaj yapıldı!");
+            Debug.Log("📢 [CLIENT] Binana sabotaj yapıldı!");
         }
     }
 }

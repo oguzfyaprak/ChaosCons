@@ -16,6 +16,7 @@ GameObject:
   - component: {fileID: 952323190401503524}
   - component: {fileID: 6876696796278172571}
   - component: {fileID: -2888932976227972280}
+  - component: {fileID: -3634419806119022631}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -394,11 +395,23 @@ MonoBehaviour:
   _componentIndexCache: 3
   _addedNetworkObject: {fileID: 7837606397448522166}
   _networkObjectCache: {fileID: 7837606397448522166}
-  sabotageRange: 10
-  sabotageDuration: 5
-  buildingLayer:
-    serializedVersion: 2
-    m_Bits: 64
+  baseSabotageDuration: 5
+  actionCooldown: 2
+  sabotageCost: 25
+  repairCost: 15
+--- !u!114 &-3634419806119022631
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2056877680756426071}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5022fecc230d06d488f1250937a2412d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  startingResources: 100
 --- !u!1 &5506712535762855421
 GameObject:
   m_ObjectHideFlags: 0
