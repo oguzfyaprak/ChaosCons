@@ -8,43 +8,52 @@ namespace Game.Player
     public class SabotageSystem : NetworkBehaviour
     {
         [SerializeField] private float sabotageDuration = 5f;
+        [SerializeField] private KeyCode sabotageKey = KeyCode.Q;
 
         private bool isSabotaging = false;
         private float sabotageTimer = 0f;
-
-        private DeliveryZone currentNearbyZone;
+        private DeliveryZone currentZone;
 
         private void Update()
         {
             if (!IsOwner) return;
 
-            if (currentNearbyZone != null && !isSabotaging)
+            if (currentZone != null && Input.GetKeyDown(sabotageKey))
             {
-                if (Input.GetKeyDown(KeyCode.Q))
+                if (!isSabotaging && !currentZone.IsSabotageCooldownActive())
                 {
-                    Debug.Log("⌨️ Q tuşuna basıldı, sabotaj başlatılıyor.");
-                    sabotageTimer = 0f;
-                    isSabotaging = true;
+                    StartSabotage();
                 }
             }
 
             if (isSabotaging)
             {
                 sabotageTimer += Time.deltaTime;
-                Debug.Log($"⏳ Sabotaj süresi: {sabotageTimer:F2}");
-
                 if (sabotageTimer >= sabotageDuration)
                 {
-                    sabotageTimer = 0f;
-                    isSabotaging = false;
+                    CompleteSabotage();
+                }
+            }
+        }
 
-                    if (currentNearbyZone != null)
-                    {
-                        int targetID = currentNearbyZone.GetOwnerID();
-                        Debug.Log($"🎯 Sabotaj tamamlandı. Hedef PlayerID: {targetID}");
-                        CmdApplySabotage(targetID);
-                        currentNearbyZone = null;
-                    }
+        private void StartSabotage()
+        {
+            isSabotaging = true;
+            sabotageTimer = 0f;
+            Debug.Log("Sabotaj veya tamir başlatıldı...");
+        }
+
+        private void CompleteSabotage()
+        {
+            sabotageTimer = 0f;
+            isSabotaging = false;
+
+            if (currentZone != null)
+            {
+                NetworkObject zoneObj = currentZone.GetComponent<NetworkObject>();
+                if (zoneObj != null)
+                {
+                    CmdSabotageOrRepair(zoneObj);
                 }
             }
         }
@@ -53,24 +62,10 @@ namespace Game.Player
         {
             if (!IsOwner) return;
 
-            Debug.Log($"🚪 Trigger Enter: {other.name}");
-
-            if (other.CompareTag("DeliveryZone") &&
-                other.TryGetComponent(out DeliveryZone zone))
+            if (other.CompareTag("DeliveryZone") && other.TryGetComponent(out DeliveryZone zone))
             {
-                int myID = GetComponent<PlayerController>().PlayerID;
-                int zoneID = zone.GetOwnerID();
-                Debug.Log($"🔍 Trigger ZoneID: {zoneID} | MyID: {myID}");
-
-                if (zoneID != myID && zone.IsCompleted() && !zone.IsDamaged())
-                {
-                    currentNearbyZone = zone;
-                    Debug.Log($"✅ Sabotaj yapılabilir bölgeye girdin. Hedef ID: {zoneID}");
-                }
-                else
-                {
-                    Debug.Log("⛔️ Bu bölge sana ait ya da zaten hasarlı.");
-                }
+                currentZone = zone;
+                Debug.Log("⚙️ Zone bulundu.");
             }
         }
 
@@ -78,39 +73,73 @@ namespace Game.Player
         {
             if (!IsOwner) return;
 
-            if (other.TryGetComponent(out DeliveryZone zone) && zone == currentNearbyZone)
+            if (other.TryGetComponent(out DeliveryZone zone) && zone == currentZone)
             {
-                currentNearbyZone = null;
-                Debug.Log("📤 Sabotaj bölgesinden çıktın.");
+                currentZone = null;
+                if (isSabotaging)
+                {
+                    sabotageTimer = 0f;
+                    isSabotaging = false;
+                    Debug.Log("🚪 Bölgeden çıkıldı, sabotaj iptal edildi.");
+                }
             }
         }
 
         [ServerRpc]
-        private void CmdApplySabotage(int targetID)
+        private void CmdSabotageOrRepair(NetworkObject zoneObj)
         {
-            Debug.Log($"🛠️ [SERVER] CmdApplySabotage çağrıldı. TargetID: {targetID}");
+            if (zoneObj == null) return;
 
-            DeliveryZone[] allZones = FindObjectsByType<DeliveryZone>(FindObjectsSortMode.None);
-            foreach (var zone in allZones)
+            DeliveryZone zone = zoneObj.GetComponent<DeliveryZone>();
+            if (zone == null) return;
+
+            // Eğer hiç kat yoksa işlem yapma
+            if (zone.GetCurrentStage() <= 0)
             {
-                if (zone.GetOwnerID() == targetID && zone.IsCompleted() && !zone.IsDamaged())
+                Debug.Log("❌ İşlem yapılamaz: bina henüz hiç kat çıkmamış.");
+                return;
+            }
+
+            int playerID = GetComponent<PlayerController>().PlayerID;
+            int zoneOwnerID = zone.GetOwnerID();
+
+            if (playerID == zoneOwnerID)
+            {
+                // KENDİ BÖLGEN → TAMİR
+                if (zone.IsDamaged())
+                {
+                    zone.Repair();
+                    Debug.Log("✅ Tamir edildi.");
+                }
+                else
+                {
+                    Debug.Log("📦 Tamir gerekmedi.");
+                }
+            }
+            else
+            {
+                // DÜŞMAN BÖLGE → SABOTAJ
+                if (!zone.IsDamaged())
+                {
+                    zone.MarkDamaged();
+                    Debug.Log("💢 Hasar verildi.");
+                }
+                else
                 {
                     zone.ApplySabotage();
-                    Debug.Log($"💣 Sabotaj uygulandı. PlayerID: {targetID}");
-
-                    NetworkConnection conn = PlayerRegistry.GetConnectionByPlayerID(targetID);
-                    if (conn != null)
-                        TargetNotifySabotaged(conn);
-                    else
-                        Debug.LogWarning("⚠️ PlayerConnection bulunamadı!");
+                    Debug.Log("💥 Kat eksildi.");
                 }
+
+                NetworkConnection conn = PlayerRegistry.GetConnectionByPlayerID(zoneOwnerID);
+                if (conn != null)
+                    TargetNotifySabotaged(conn);
             }
         }
 
         [TargetRpc]
         private void TargetNotifySabotaged(NetworkConnection conn)
         {
-            Debug.Log("📢 [CLIENT] Binana sabotaj yapıldı!");
+            Debug.Log("🚨 BİNANA SABOTAJ YAPILDI!");
         }
     }
 }

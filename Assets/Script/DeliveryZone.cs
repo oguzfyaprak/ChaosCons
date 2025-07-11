@@ -12,22 +12,22 @@ namespace Game.Building
         [SerializeField] private Transform buildingRoot;
         [SerializeField] private GameObject[] buildingStages;
         [SerializeField] private float floorHeight = 1.5f;
-        [SerializeField] private float sizeFactor = 1.0f; // Sabotaj süresine etki edecek faktör
 
         [Header("Tamamlama Efektleri")]
         [SerializeField] private ParticleSystem completionEffect;
         [SerializeField] private AudioClip completionSound;
 
-        private readonly SyncVar<int> currentStage = new SyncVar<int>();
         private NetworkManager networkManager;
 
-        private bool isDamaged = false;
+        private readonly SyncVar<int> currentStage = new(0);
+        private readonly SyncVar<bool> isDamaged = new(false);
+        private readonly SyncVar<bool> isSabotageCooldown = new(false);
 
         private void Awake()
         {
             networkManager = FindFirstObjectByType<NetworkManager>();
             if (networkManager == null)
-                Debug.LogError("NetworkManager bulunamadı! DeliveryZone çalışmayacak.");
+                Debug.LogError("❌ NetworkManager bulunamadı! DeliveryZone çalışmaz.");
 
             currentStage.OnChange += OnStageChanged;
         }
@@ -41,8 +41,14 @@ namespace Game.Building
         public void SetOwnerID(int id)
         {
             ownerPlayerID = id;
-            Debug.Log($"DeliveryZone assigned to player ID {id}");
+            Debug.Log($"✅ DeliveryZone player ID atandı: {id}");
         }
+
+        public int GetOwnerID() => ownerPlayerID;
+        public bool IsDamaged() => isDamaged.Value;
+        public bool IsCompleted() => currentStage.Value >= buildingStages.Length;
+        public int GetCurrentStage() => currentStage.Value;
+        public bool IsSabotageCooldownActive() => isSabotageCooldown.Value;
 
         private void OnTriggerEnter(Collider other)
         {
@@ -52,70 +58,59 @@ namespace Game.Building
             if (!other.TryGetComponent(out NetworkObject netObj)) return;
             if (!other.TryGetComponent(out ItemProperties itemProps)) return;
 
-            Debug.Log($"DeliveryZone owner: {ownerPlayerID}, Item owner: {itemProps.ownerPlayerID.Value}");
-
             if (itemProps.ownerPlayerID.Value == ownerPlayerID)
             {
                 AdvanceBuildingStage();
 
-                if (netObj != null && netObj.IsSpawned)
+                if (netObj.IsSpawned)
                 {
                     foreach (var comp in netObj.GetComponents<NetworkBehaviour>())
                         comp.enabled = false;
 
                     networkManager.ServerManager.Despawn(netObj, DespawnType.Destroy);
-                    Debug.Log($"Item despawn edildi: {netObj.name}");
                 }
-            }
-            else
-            {
-                Debug.Log($"Yanlış bölge: Item owner {itemProps.ownerPlayerID.Value} -> Zone owner {ownerPlayerID}");
             }
         }
 
         [Server]
         private void AdvanceBuildingStage()
         {
-            if (currentStage.Value >= buildingStages.Length) return;
+            if (IsCompleted()) return;
 
             currentStage.Value++;
-            isDamaged = false; // Yeni katla birlikte onarılmış sayılır
+            isDamaged.Value = false;
             SpawnCurrentStage();
 
-            if (currentStage.Value >= buildingStages.Length)
-            {
+            if (IsCompleted())
                 RpcCompletionEffects();
-            }
         }
 
         [Server]
         private void SpawnCurrentStage()
         {
-            Vector3 pos = buildingRoot.position + Vector3.up * ((currentStage.Value - 1) * floorHeight);
-            GameObject stage = Instantiate(buildingStages[currentStage.Value - 1], pos, Quaternion.identity);
+            int index = currentStage.Value - 1;
+            if (index < 0 || index >= buildingStages.Length) return;
+
+            Vector3 pos = buildingRoot.position + Vector3.up * (index * floorHeight);
+            GameObject stage = Instantiate(buildingStages[index], pos, Quaternion.identity);
 
             if (stage.TryGetComponent(out NetworkObject netObj))
             {
-                networkManager.ServerManager.Spawn(netObj);
                 stage.name = $"Stage{currentStage.Value}";
-            }
-            else
-            {
-                Debug.LogError("NetworkObject eksik prefab!");
+                networkManager.ServerManager.Spawn(netObj);
             }
         }
 
         private void OnStageChanged(int prev, int next, bool asServer)
         {
             if (asServer) return;
-            Debug.Log($"Client stage değişti: {prev} -> {next}");
+            Debug.Log($"📶 Client: Bina stage değişti → {prev} → {next}");
         }
 
         [ObserversRpc]
         private void RpcCompletionEffects()
         {
-            Debug.Log("Completion effects played on all clients");
-
+            Debug.Log("🎉 Bina tamamlandı! Efektler oynatılıyor.");
             if (completionEffect != null)
                 Instantiate(completionEffect, transform.position, Quaternion.identity);
 
@@ -128,52 +123,69 @@ namespace Game.Building
         {
             if (currentStage.Value <= 0)
             {
-                Debug.Log("No stage to sabotage.");
+                Debug.Log("❌ Sabotaj yapılamaz: bina hiç kat çıkmamış.");
                 return;
             }
 
             int lastIndex = currentStage.Value - 1;
-            string lastStageName = $"Stage{lastIndex + 1}";
+            string lastStageName = $"Stage{currentStage.Value}";
 
-            Transform lastStage = buildingRoot.Find(lastStageName);
-            if (lastStage != null && lastStage.TryGetComponent(out NetworkObject netObj))
+            GameObject[] allObjects = GameObject.FindObjectsByType<GameObject>(FindObjectsSortMode.None);
+
+            foreach (var obj in allObjects)
             {
-                currentStage.Value--;
-                isDamaged = true;
-                networkManager.ServerManager.Despawn(netObj, DespawnType.Destroy);
-                Debug.Log($"Stage sabotaged and despawned: {lastStageName}");
+                if (obj.name == lastStageName && obj.transform.position.y == buildingRoot.position.y + (lastIndex * floorHeight))
+                {
+                    if (obj.TryGetComponent(out NetworkObject netObj))
+                    {
+                        currentStage.Value--;
+                        isDamaged.Value = true;
+                        isSabotageCooldown.Value = true;
+
+                        // 5 saniye sonra cooldown'u kaldır
+                        Invoke(nameof(ResetSabotageCooldown), 5f);
+
+                        networkManager.ServerManager.Despawn(netObj, DespawnType.Destroy);
+                        RpcSetDamageVisual(true);
+                        Debug.Log($"💥 Kat silindi ve bina hasarlandı: {lastStageName}");
+                        return;
+                    }
+                }
             }
-            else
-            {
-                Debug.LogWarning($"Sabotaj için stage bulunamadı: {lastStageName}");
-            }
+
+            Debug.LogWarning($"❌ Sahnede sabotaj için uygun prefab bulunamadı: {lastStageName}");
+        }
+
+        [Server]
+        private void ResetSabotageCooldown()
+        {
+            isSabotageCooldown.Value = false;
+        }
+
+        [Server]
+        public void MarkDamaged()
+        {
+            isDamaged.Value = true;
+            isSabotageCooldown.Value = true;
+            Invoke(nameof(ResetSabotageCooldown), 5f);
+            RpcSetDamageVisual(true);
+            Debug.Log("⚠️ Bina hasarlı olarak işaretlendi.");
         }
 
         [Server]
         public void Repair()
         {
-            isDamaged = false;
-            Debug.Log("Bina onarıldı.");
+            if (!isDamaged.Value) return;
+
+            isDamaged.Value = false;
+            RpcSetDamageVisual(false);
+            Debug.Log("🔧 Bina tamir edildi.");
         }
 
-        public bool IsDamaged()
+        [ObserversRpc]
+        private void RpcSetDamageVisual(bool hasarliMi)
         {
-            return isDamaged;
-        }
-
-        public float GetSizeFactor()
-        {
-            return sizeFactor;
-        }
-
-        public int GetOwnerID()
-        {
-            return ownerPlayerID;
-        }
-
-        public bool IsCompleted()
-        {
-            return currentStage.Value >= buildingStages.Length;
+            Debug.Log($"🎨 Görsel güncellendi → {(hasarliMi ? "HASARLI" : "SAĞLAM")}");
         }
     }
 }

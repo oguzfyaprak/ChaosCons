@@ -53,6 +53,11 @@ namespace Game.Player
             characterController = GetComponent<CharacterController>();
         }
 
+        private void Start()
+        {
+            Debug.Log($"[CLIENT {Owner.ClientId}] My PlayerID: {PlayerID}");
+        }
+
         public override void OnStartClient()
         {
             base.OnStartClient();
