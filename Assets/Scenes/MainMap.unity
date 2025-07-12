@@ -301,7 +301,7 @@ GameObject:
   - component: {fileID: 49393294}
   m_Layer: 0
   m_Name: SpawnPoint
-  m_TagString: Untagged
+  m_TagString: RespawnPoint
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -533,7 +533,6 @@ MonoBehaviour:
   - {fileID: 796233042360391432, guid: b8568b1b50e93d74ca6b74ba10304da7, type: 3}
   - {fileID: 796233042360391432, guid: 665f67e07515a3f448ea38fc208ba982, type: 3}
   floorHeight: 1.5
-  sizeFactor: 1
   completionEffect: {fileID: 0}
   completionSound: {fileID: 8300000, guid: 0330762d2b3c8d641bfe11ad89b7e196, type: 3}
 --- !u!114 &109559271
@@ -714,7 +713,6 @@ MonoBehaviour:
   - {fileID: 796233042360391432, guid: b8568b1b50e93d74ca6b74ba10304da7, type: 3}
   - {fileID: 796233042360391432, guid: 665f67e07515a3f448ea38fc208ba982, type: 3}
   floorHeight: 1.5
-  sizeFactor: 1
   completionEffect: {fileID: 0}
   completionSound: {fileID: 0}
 --- !u!114 &126980820
@@ -868,7 +866,7 @@ GameObject:
   - component: {fileID: 180752915}
   m_Layer: 0
   m_Name: SpawnPoint (3)
-  m_TagString: Untagged
+  m_TagString: RespawnPoint
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -1068,7 +1066,6 @@ MonoBehaviour:
   - {fileID: 796233042360391432, guid: b8568b1b50e93d74ca6b74ba10304da7, type: 3}
   - {fileID: 796233042360391432, guid: 665f67e07515a3f448ea38fc208ba982, type: 3}
   floorHeight: 1.5
-  sizeFactor: 1
   completionEffect: {fileID: 0}
   completionSound: {fileID: 0}
 --- !u!114 &237440067
@@ -1253,7 +1250,7 @@ GameObject:
   - component: {fileID: 337504983}
   m_Layer: 0
   m_Name: SpawnPoint (2)
-  m_TagString: Untagged
+  m_TagString: RespawnPoint
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -1346,7 +1343,7 @@ GameObject:
   - component: {fileID: 474878821}
   m_Layer: 0
   m_Name: SpawnPoint (5)
-  m_TagString: Untagged
+  m_TagString: RespawnPoint
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -1377,7 +1374,7 @@ GameObject:
   - component: {fileID: 522206369}
   m_Layer: 0
   m_Name: SpawnPoint (6)
-  m_TagString: Untagged
+  m_TagString: RespawnPoint
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -1509,7 +1506,6 @@ MonoBehaviour:
   - {fileID: 796233042360391432, guid: b8568b1b50e93d74ca6b74ba10304da7, type: 3}
   - {fileID: 796233042360391432, guid: 665f67e07515a3f448ea38fc208ba982, type: 3}
   floorHeight: 1.5
-  sizeFactor: 1
   completionEffect: {fileID: 0}
   completionSound: {fileID: 0}
 --- !u!114 &536991023
@@ -2371,7 +2367,6 @@ MonoBehaviour:
   - {fileID: 796233042360391432, guid: b8568b1b50e93d74ca6b74ba10304da7, type: 3}
   - {fileID: 796233042360391432, guid: 665f67e07515a3f448ea38fc208ba982, type: 3}
   floorHeight: 1.5
-  sizeFactor: 1
   completionEffect: {fileID: 0}
   completionSound: {fileID: 0}
 --- !u!114 &1010572439
@@ -2504,7 +2499,6 @@ MonoBehaviour:
   - {fileID: 796233042360391432, guid: b8568b1b50e93d74ca6b74ba10304da7, type: 3}
   - {fileID: 796233042360391432, guid: 665f67e07515a3f448ea38fc208ba982, type: 3}
   floorHeight: 1.5
-  sizeFactor: 1
   completionEffect: {fileID: 0}
   completionSound: {fileID: 0}
 --- !u!114 &1038518667
@@ -2791,7 +2785,7 @@ GameObject:
   - component: {fileID: 1419387414}
   m_Layer: 0
   m_Name: SpawnPoint (4)
-  m_TagString: Untagged
+  m_TagString: RespawnPoint
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -3013,7 +3007,7 @@ GameObject:
   - component: {fileID: 1690785965}
   m_Layer: 0
   m_Name: SpawnPoint (7)
-  m_TagString: Untagged
+  m_TagString: RespawnPoint
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -3245,7 +3239,6 @@ MonoBehaviour:
   - {fileID: 796233042360391432, guid: b8568b1b50e93d74ca6b74ba10304da7, type: 3}
   - {fileID: 796233042360391432, guid: 665f67e07515a3f448ea38fc208ba982, type: 3}
   floorHeight: 1.5
-  sizeFactor: 1
   completionEffect: {fileID: 0}
   completionSound: {fileID: 0}
 --- !u!114 &1772856121
@@ -3409,7 +3402,6 @@ MonoBehaviour:
   - {fileID: 796233042360391432, guid: b8568b1b50e93d74ca6b74ba10304da7, type: 3}
   - {fileID: 796233042360391432, guid: 665f67e07515a3f448ea38fc208ba982, type: 3}
   floorHeight: 1.5
-  sizeFactor: 1
   completionEffect: {fileID: 0}
   completionSound: {fileID: 0}
 --- !u!114 &1946138011
@@ -3510,7 +3502,7 @@ GameObject:
   - component: {fileID: 1992901879}
   m_Layer: 0
   m_Name: SpawnPoint (1)
-  m_TagString: Untagged
+  m_TagString: RespawnPoint
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0

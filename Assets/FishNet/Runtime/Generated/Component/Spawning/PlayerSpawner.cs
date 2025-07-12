@@ -5,6 +5,7 @@ using System;
 using UnityEngine;
 using UnityEngine.Serialization;
 
+
 namespace FishNet.Component.Spawning
 {
     /// <summary>
@@ -92,6 +93,8 @@ namespace FishNet.Component.Spawning
         /// </summary>
         private void SceneManager_OnClientLoadedStartScenes(NetworkConnection conn, bool asServer)
         {
+
+            
             if (!asServer)
                 return;
             if (_playerPrefab == null)
@@ -110,6 +113,7 @@ namespace FishNet.Component.Spawning
             //If there are no global scenes 
             if (_addToDefaultScene)
                 _networkManager.SceneManager.AddOwnerToDefaultScene(nob);
+
 
             OnSpawned?.Invoke(nob);
         }

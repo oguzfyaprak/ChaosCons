@@ -17,7 +17,8 @@ GameObject:
   - component: {fileID: 6876696796278172571}
   - component: {fileID: -2888932976227972280}
   - component: {fileID: -3634419806119022631}
-  m_Layer: 0
+  - component: {fileID: -4411323640039941063}
+  m_Layer: 3
   m_Name: Player
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -258,6 +259,12 @@ MonoBehaviour:
   itemHoldPoint: {fileID: 4081024044302862327}
   pickupDistance: 3
   itemLerpSpeed: 10
+  attackRange: 2
+  attackDamage: 20
+  hitMask:
+    serializedVersion: 2
+    m_Bits: 8
+  animator: {fileID: 0}
 --- !u!114 &7837606397448522166
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -279,6 +286,7 @@ MonoBehaviour:
   - {fileID: 952323190401503524}
   - {fileID: 6876696796278172571}
   - {fileID: -2888932976227972280}
+  - {fileID: -4411323640039941063}
   InitializedParentNetworkBehaviour: {fileID: 0}
   InitializedNestedNetworkObjects: []
   RuntimeParentNetworkBehaviour: {fileID: 0}
@@ -335,8 +343,8 @@ MonoBehaviour:
     Scale: 0
   _interpolation: 2
   _extrapolation: 2
-  _enableTeleport: 0
-  _teleportThreshold: 1
+  _enableTeleport: 1
+  _teleportThreshold: 0.5
   _clientAuthoritative: 1
   _sendToOwner: 1
   _interval: 1
@@ -395,10 +403,8 @@ MonoBehaviour:
   _componentIndexCache: 3
   _addedNetworkObject: {fileID: 7837606397448522166}
   _networkObjectCache: {fileID: 7837606397448522166}
-  baseSabotageDuration: 5
-  actionCooldown: 2
-  sabotageCost: 25
-  repairCost: 15
+  sabotageDuration: 5
+  sabotageKey: 113
 --- !u!114 &-3634419806119022631
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -412,6 +418,27 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   startingResources: 100
+--- !u!114 &-4411323640039941063
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2056877680756426071}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7bfa67e90d6124748b8396a3d8c55cce, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _componentIndexCache: 4
+  _addedNetworkObject: {fileID: 7837606397448522166}
+  _networkObjectCache: {fileID: 7837606397448522166}
+  maxHealth: 100
+  invincibilityDuration: 1.5
+  respawnDelay: 2
+  deathEffectPrefab: {fileID: 0}
+  hurtSound: {fileID: 0}
+  deathSound: {fileID: 0}
 --- !u!1 &5506712535762855421
 GameObject:
   m_ObjectHideFlags: 0
@@ -421,7 +448,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 4081024044302862327}
-  m_Layer: 0
+  m_Layer: 3
   m_Name: ItemHoldPoint
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -455,7 +482,7 @@ GameObject:
   - component: {fileID: 7718220773865300181}
   - component: {fileID: 1092640491242034305}
   - component: {fileID: 6171343817284704360}
-  m_Layer: 0
+  m_Layer: 3
   m_Name: Body
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -565,7 +592,7 @@ GameObject:
   - component: {fileID: 9183331345614961740}
   - component: {fileID: 7410361741755628151}
   - component: {fileID: 8649070808491285443}
-  m_Layer: 0
+  m_Layer: 3
   m_Name: Camera
   m_TagString: Untagged
   m_Icon: {fileID: 0}

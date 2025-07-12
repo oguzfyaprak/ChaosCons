@@ -7,11 +7,12 @@ TagManager:
   - DeliveryZone
   - Item
   - Sabotage
+  - RespawnPoint
   layers:
   - Default
   - TransparentFX
   - Ignore Raycast
-  - 
+  - Damage
   - Water
   - UI
   - Building
