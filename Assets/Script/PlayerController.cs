@@ -31,6 +31,8 @@ namespace Game.Player
         [SerializeField] private LayerMask hitMask;
         [SerializeField] private Animator animator;
 
+        private readonly SyncVar<float> syncedSpeed = new();
+
         private CharacterController characterController;
         private Vector2 moveInput;
         private Vector2 lookInput;
@@ -40,7 +42,7 @@ namespace Game.Player
         private bool isSprinting;
         private NetworkObject heldItem;
 
-        private bool _movementEnabled = true; // Hareketin etkin olup olmadığını kontrol eder
+        private bool _movementEnabled = true;
 
         public int PlayerID { get; private set; }
         private static int playerIdCounter = 0;
@@ -49,7 +51,6 @@ namespace Game.Player
         {
             base.OnStartServer();
             PlayerID = playerIdCounter++;
-
             PlayerRegistry.Register(PlayerID, Owner);
             Debug.Log($"[SERVER] Player {Owner.ClientId} assigned PlayerID: {PlayerID}");
         }
@@ -59,7 +60,7 @@ namespace Game.Player
             characterController = GetComponent<CharacterController>();
             if (animator == null)
             {
-                animator = GetComponent<Animator>();
+                animator = GetComponentInChildren<Animator>();
             }
         }
 
@@ -96,21 +97,18 @@ namespace Game.Player
 
         private void Update()
         {
-            // Eğer sahip değilsek veya hareket devre dışıysa işlem yapma
             if (!IsOwner) return;
 
             if (!_movementEnabled)
             {
-                // Hareket devre dışıysa, tüm inputları sıfırla ve hareket hesaplamalarını atla
                 moveInput = Vector2.zero;
                 lookInput = Vector2.zero;
                 velocity = Vector3.zero;
                 isJumping = false;
                 isSprinting = false;
-                return; // Hareket devre dışıysa buradan çık
+                return;
             }
 
-            // Hareket etkinse aşağıdaki kodlar çalışır
             HandleLook();
             HandleMovement();
             HandleHeldItemPosition();
@@ -119,6 +117,30 @@ namespace Game.Player
             {
                 TryAttack();
             }
+
+            float localSpeed = moveInput.magnitude;
+
+            if (animator != null)
+                animator.SetFloat("speed", localSpeed);
+
+            if (IsServerInitialized)
+                syncedSpeed.Value = localSpeed;
+            else
+                UpdateSpeedServerRpc(localSpeed);
+        }
+
+        private void LateUpdate()
+        {
+            if (IsOwner) return;
+
+            if (animator != null)
+                animator.SetFloat("speed", syncedSpeed.Value);
+        }
+
+        [ServerRpc]
+        private void UpdateSpeedServerRpc(float speed)
+        {
+            syncedSpeed.Value = speed;
         }
 
         private void HandleLook()
@@ -279,7 +301,6 @@ namespace Game.Player
             }
         }
 
-        // INPUT HANDLERS
         public void OnMove(InputAction.CallbackContext context)
         {
             if (IsOwner && _movementEnabled) moveInput = context.ReadValue<Vector2>();
@@ -316,18 +337,11 @@ namespace Game.Player
                 TryDropItem();
         }
 
-        // --- Yardımcı Metotlar ---
-
-        /// <summary>
-        /// Karakterin hareketini ve kamera kontrolünü etkinleştirir/devre dışı bırakır.
-        /// HealthSystem tarafından respawn sırasında çağrılacaktır.
-        /// </summary>
         public void SetMovementEnabled(bool enabled)
         {
             Debug.Log($"[{(IsOwner ? "CLIENT" : "SERVER")}] PlayerController.SetMovementEnabled çağrıldı: {enabled}");
             _movementEnabled = enabled;
 
-            // Hareket devre dışı bırakılıyorsa, mevcut hareket ve bakış input'larını sıfırla.
             if (!enabled)
             {
                 moveInput = Vector2.zero;
@@ -337,10 +351,7 @@ namespace Game.Player
                 isSprinting = false;
                 Debug.Log($"[{(IsOwner ? "CLIENT" : "SERVER")}] Hareket girdileri ve hız sıfırlandı.");
             }
-            // CharacterController'ı burada etkinleştirip devre dışı bırakmıyoruz.
-            // Bu, donma sorununu çözmek için önemli bir değişiklik.
 
-            // Fare kilitleme durumunu da hareket durumuna göre ayarla
             if (IsOwner)
             {
                 Cursor.lockState = enabled ? CursorLockMode.Locked : CursorLockMode.None;
@@ -350,9 +361,6 @@ namespace Game.Player
             Debug.Log($"[{(IsOwner ? "CLIENT" : "SERVER")}] Movement enabled state set to: {enabled}");
         }
 
-        /// <summary>
-        /// Karakterin hızını sıfırlar. HealthSystem tarafından respawn sırasında çağrılır.
-        /// </summary>
         public void ResetVelocity()
         {
             velocity = Vector3.zero;

@@ -3,26 +3,30 @@ using Steamworks;
 
 public class SteamManager : MonoBehaviour
 {
+    public static SteamManager Instance;
+
     private void Awake()
     {
-        if (!SteamAPI.Init())
+        if (Instance != null) { Destroy(gameObject); return; }
+        Instance = this;
+        DontDestroyOnLoad(gameObject);
+
+        try
         {
-            Debug.LogError("SteamAPI init failed!");
-            Application.Quit();
+            if (!SteamAPI.Init())
+            {
+                Debug.LogError("SteamAPI baþlatýlamadý!");
+                return;
+            }
+            Debug.Log("Steam baþlatýldý: " + SteamFriends.GetPersonaName());
         }
-        else
+        catch (System.Exception e)
         {
-            Debug.Log("SteamAPI init success!");
+            Debug.LogError("Steam hatasý: " + e.Message);
         }
     }
 
-    private void Update()
-    {
-        SteamAPI.RunCallbacks();
-    }
+    private void Update() => SteamAPI.RunCallbacks();
 
-    private void OnApplicationQuit()
-    {
-        SteamAPI.Shutdown();
-    }
+    private void OnApplicationQuit() => SteamAPI.Shutdown();
 }
