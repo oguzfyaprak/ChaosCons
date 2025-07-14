@@ -18,9 +18,11 @@ GameObject:
   - component: {fileID: -2888932976227972280}
   - component: {fileID: -3634419806119022631}
   - component: {fileID: -4411323640039941063}
+  - component: {fileID: 7600686479584844861}
+  - component: {fileID: 5488900262982575538}
   m_Layer: 3
   m_Name: Player
-  m_TagString: Untagged
+  m_TagString: Player
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -39,8 +41,8 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1937444009982576590}
-  - {fileID: 6009062605030630662}
   - {fileID: 4081024044302862327}
+  - {fileID: 6009062605030630662}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!143 &2846306419232732417
@@ -287,6 +289,7 @@ MonoBehaviour:
   - {fileID: 6876696796278172571}
   - {fileID: -2888932976227972280}
   - {fileID: -4411323640039941063}
+  - {fileID: 7600686479584844861}
   InitializedParentNetworkBehaviour: {fileID: 0}
   InitializedNestedNetworkObjects: []
   RuntimeParentNetworkBehaviour: {fileID: 0}
@@ -439,6 +442,49 @@ MonoBehaviour:
   deathEffectPrefab: {fileID: 0}
   hurtSound: {fileID: 0}
   deathSound: {fileID: 0}
+--- !u!114 &7600686479584844861
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2056877680756426071}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 74690d4a9ae7e894e89ddbe412aa48b0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _componentIndexCache: 5
+  _addedNetworkObject: {fileID: 7837606397448522166}
+  _networkObjectCache: {fileID: 7837606397448522166}
+  currentAbility: 2
+  abilityDuration: 3
+  abilityCooldown: 10
+  blinkDistance: 5
+  speedBoostSettings:
+    cooldown: 15
+    duration: 10
+  damageBoostSettings:
+    cooldown: 15
+    duration: 10
+  invisibilitySettings:
+    cooldown: 10
+    duration: 5
+  blinkSettings:
+    cooldown: 5
+    duration: 1
+--- !u!114 &5488900262982575538
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2056877680756426071}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3c90aa2fa0392e64d950e3ef4614b2b7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &5506712535762855421
 GameObject:
   m_ObjectHideFlags: 0
@@ -497,8 +543,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 8165999070580105940}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 1.697, z: -2.315}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 1.715, z: 0.25}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -662,7 +708,7 @@ PrefabInstance:
     - target: {fileID: 5866666021909216657, guid: 90b381edfc1f6464ca883dac6afd7faf, type: 3}
       propertyPath: m_Controller
       value: 
-      objectReference: {fileID: 9100000, guid: f6c0dc3ac9ccf8d42857604af4b64db1, type: 2}
+      objectReference: {fileID: 9100000, guid: 08aed5a7b6a1b65438a2cb6b03e6ed4f, type: 2}
     - target: {fileID: 5866666021909216657, guid: 90b381edfc1f6464ca883dac6afd7faf, type: 3}
       propertyPath: m_ApplyRootMotion
       value: 0

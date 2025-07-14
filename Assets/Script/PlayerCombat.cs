@@ -24,6 +24,7 @@ public class PlayerCombat : NetworkBehaviour
 
     private int currentHealth;
     private bool isDead = false;
+    private float damageMultiplier = 1f;
 
     private void Awake()
     {
@@ -35,8 +36,7 @@ public class PlayerCombat : NetworkBehaviour
 
         if (spawnPoints == null || spawnPoints.Length == 0)
         {
-            Debug.LogWarning("SpawnPoints atanmadý. Sahnedeki PlayerSpawner'dan alýnacak.");
-
+            Debug.LogWarning("SpawnPoints atanmadı. Sahnedeki PlayerSpawner'dan alınacak.");
         }
     }
 
@@ -59,7 +59,6 @@ public class PlayerCombat : NetworkBehaviour
         }
     }
 
-   
     [Server]
     public void TakeDamage(int amount)
     {
@@ -87,12 +86,12 @@ public class PlayerCombat : NetworkBehaviour
         {
             if (hit.collider.TryGetComponent<PlayerCombat>(out var target))
             {
-                target.TakeDamage(damageAmount);
+                int finalDamage = Mathf.RoundToInt(damageAmount * damageMultiplier);
+                target.TakeDamage(finalDamage);
             }
         }
     }
 
- 
     [Server]
     private IEnumerator ServerRespawnRoutine()
     {
@@ -108,7 +107,7 @@ public class PlayerCombat : NetworkBehaviour
         }
         else
         {
-            Debug.LogWarning("SpawnPoint bulunamadý, (0,0,0)'a konumlandý.");
+            Debug.LogWarning("SpawnPoint bulunamadı, (0,0,0)'a konumlandık.");
             transform.position = Vector3.zero;
         }
 
@@ -116,7 +115,6 @@ public class PlayerCombat : NetworkBehaviour
         isDead = false;
         RpcOnRespawn(currentHealth);
     }
-
 
     [ObserversRpc]
     private void RpcUpdateHealth(int newHealth)
@@ -142,5 +140,16 @@ public class PlayerCombat : NetworkBehaviour
         {
             healthBar.value = newHealth;
         }
+    }
+
+    // === YENİ: Hasar Çarpanı Kontrolü ===
+    public void SetDamageMultiplier(float multiplier)
+    {
+        damageMultiplier = multiplier;
+    }
+
+    public void ResetDamageMultiplier()
+    {
+        damageMultiplier = 1f;
     }
 }

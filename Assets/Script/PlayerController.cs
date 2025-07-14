@@ -44,6 +44,8 @@ namespace Game.Player
 
         private bool _movementEnabled = true;
 
+        private float speedMultiplier = 1f; // 💡 YENİ
+
         public int PlayerID { get; private set; }
         private static int playerIdCounter = 0;
 
@@ -59,9 +61,7 @@ namespace Game.Player
         {
             characterController = GetComponent<CharacterController>();
             if (animator == null)
-            {
                 animator = GetComponentInChildren<Animator>();
-            }
         }
 
         private void Start()
@@ -154,7 +154,7 @@ namespace Game.Player
         private void HandleMovement()
         {
             Vector3 move = transform.TransformDirection(new Vector3(moveInput.x, 0, moveInput.y));
-            float currentSpeed = isSprinting ? speed * sprintMultiplier : speed;
+            float currentSpeed = (isSprinting ? speed * sprintMultiplier : speed) * speedMultiplier; // 💡 GÜNCELLENDİ
             velocity.x = move.x * currentSpeed;
             velocity.z = move.z * currentSpeed;
 
@@ -286,7 +286,7 @@ namespace Game.Player
             }
 
             if (animator != null)
-                animator.SetTrigger("Attack");
+                animator.SetTrigger("Punch");
         }
 
         [ServerRpc]
@@ -365,6 +365,66 @@ namespace Game.Player
         {
             velocity = Vector3.zero;
             Debug.Log($"[{(IsOwner ? "CLIENT" : "SERVER")}] Velocity sıfırlandı.");
+        }
+
+        // === YENİ: Speed Boost Yetenek Fonksiyonları ===
+        public void SetSpeedMultiplier(float multiplier)
+        {
+            speedMultiplier = multiplier;
+        }
+
+        public void ResetSpeedMultiplier()
+        {
+            speedMultiplier = 1f;
+        }
+
+        private void OnTriggerEnter(Collider other)
+        {
+            if (!IsOwner) return;
+
+            TeleportArea area = other.GetComponent<TeleportArea>();
+            if (area != null && area.teleportTarget != null)
+            {
+                Debug.Log($"[CLIENT {Owner.ClientId}] Trigger detected. Requesting teleport to {area.teleportTarget.position}");
+                RequestTeleportServerRpc(area.teleportTarget.position);
+            }
+        }
+
+        [ServerRpc]
+        private void RequestTeleportServerRpc(Vector3 targetPos)
+        {
+            Debug.Log($"[SERVER] Teleporting to {targetPos}");
+
+            CharacterController cc = GetComponent<CharacterController>();
+            if (cc != null) cc.enabled = false;
+
+            transform.position = targetPos;
+
+            if (cc != null) cc.enabled = true;
+            ResetMovementObserversRpc();
+        }
+
+        [ObserversRpc]
+        private void ResetMovementObserversRpc()
+        {
+            velocity = Vector3.zero;
+
+            if (characterController != null)
+                characterController.Move(Vector3.zero); // pozisyonu stabilize et
+        }
+        public void Teleport(Vector3 newPosition)
+        {
+            StartCoroutine(TeleportRoutine(newPosition));
+        }
+
+        private IEnumerator TeleportRoutine(Vector3 targetPos)
+        {
+            CharacterController cc = GetComponent<CharacterController>();
+            if (cc != null) cc.enabled = false;
+
+            transform.position = targetPos;
+            yield return null; // 1 frame bekle
+            if (cc != null) cc.enabled = true;
         }
     }
 }
