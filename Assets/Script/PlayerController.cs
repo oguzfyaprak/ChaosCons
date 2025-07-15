@@ -153,8 +153,11 @@ namespace Game.Player
 
         private void HandleMovement()
         {
+            if (!characterController.enabled)
+                return;
+
             Vector3 move = transform.TransformDirection(new Vector3(moveInput.x, 0, moveInput.y));
-            float currentSpeed = (isSprinting ? speed * sprintMultiplier : speed) * speedMultiplier; // 💡 GÜNCELLENDİ
+            float currentSpeed = (isSprinting ? speed * sprintMultiplier : speed) * speedMultiplier;
             velocity.x = move.x * currentSpeed;
             velocity.z = move.z * currentSpeed;
 
@@ -168,7 +171,7 @@ namespace Game.Player
             }
 
             velocity.y += gravity * Time.deltaTime;
-            characterController.Move(velocity * Time.deltaTime);
+            characterController.Move(velocity * Time.deltaTime); // line 171
         }
 
         private bool IsGrounded()
@@ -378,53 +381,6 @@ namespace Game.Player
             speedMultiplier = 1f;
         }
 
-        private void OnTriggerEnter(Collider other)
-        {
-            if (!IsOwner) return;
-
-            TeleportArea area = other.GetComponent<TeleportArea>();
-            if (area != null && area.teleportTarget != null)
-            {
-                Debug.Log($"[CLIENT {Owner.ClientId}] Trigger detected. Requesting teleport to {area.teleportTarget.position}");
-                RequestTeleportServerRpc(area.teleportTarget.position);
-            }
-        }
-
-        [ServerRpc]
-        private void RequestTeleportServerRpc(Vector3 targetPos)
-        {
-            Debug.Log($"[SERVER] Teleporting to {targetPos}");
-
-            CharacterController cc = GetComponent<CharacterController>();
-            if (cc != null) cc.enabled = false;
-
-            transform.position = targetPos;
-
-            if (cc != null) cc.enabled = true;
-            ResetMovementObserversRpc();
-        }
-
-        [ObserversRpc]
-        private void ResetMovementObserversRpc()
-        {
-            velocity = Vector3.zero;
-
-            if (characterController != null)
-                characterController.Move(Vector3.zero); // pozisyonu stabilize et
-        }
-        public void Teleport(Vector3 newPosition)
-        {
-            StartCoroutine(TeleportRoutine(newPosition));
-        }
-
-        private IEnumerator TeleportRoutine(Vector3 targetPos)
-        {
-            CharacterController cc = GetComponent<CharacterController>();
-            if (cc != null) cc.enabled = false;
-
-            transform.position = targetPos;
-            yield return null; // 1 frame bekle
-            if (cc != null) cc.enabled = true;
-        }
+        
     }
 }

@@ -1,6 +1,5 @@
 using UnityEngine;
 using FishNet.Object;
-using Game.Player;
 
 public class TeleportPortal : NetworkBehaviour
 {
@@ -10,13 +9,9 @@ public class TeleportPortal : NetworkBehaviour
     {
         if (!IsServerInitialized) return;
 
-        if (other.CompareTag("Player"))
+        if (other.TryGetComponent(out TeleportHandler teleport))
         {
-            PlayerController pc = other.GetComponent<PlayerController>();
-            if (pc != null)
-            {
-                pc.Teleport(teleportTarget.position);
-            }
+            teleport.TeleportTo(teleportTarget.position);
         }
     }
 }
