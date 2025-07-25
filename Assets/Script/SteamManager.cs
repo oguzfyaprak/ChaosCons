@@ -4,6 +4,7 @@ using Steamworks;
 public class SteamManager : MonoBehaviour
 {
     public static SteamManager Instance;
+    public static bool Initialized { get; private set; } = false; // EKLENEN SATIR
 
     private void Awake()
     {
@@ -16,8 +17,11 @@ public class SteamManager : MonoBehaviour
             if (!SteamAPI.Init())
             {
                 Debug.LogError("SteamAPI baþlatýlamadý!");
+                Initialized = false;
                 return;
             }
+
+            Initialized = true; // EKLENEN SATIR
             Debug.Log("Steam baþlatýldý: " + SteamFriends.GetPersonaName());
         }
         catch (System.Exception e)
