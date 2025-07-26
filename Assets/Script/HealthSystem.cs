@@ -2,9 +2,10 @@
 using FishNet.Object;
 using FishNet.Object.Synchronizing;
 using System.Collections;
-using FishNet.Component.Transforming; // NetworkTransform için gerekli
+using FishNet.Component.Transforming;
 using FishNet.Connection;
 using Game.Player;
+using Game.Score; // ScoreManager için gerekli
 
 public class HealthSystem : NetworkBehaviour
 {
@@ -23,14 +24,14 @@ public class HealthSystem : NetworkBehaviour
     private bool _isInvincible;
     private AudioSource _audioSource;
     private PlayerController _playerController;
-    private NetworkTransform _networkTransform; // YENİ: NetworkTransform referansı
-    private CharacterController _characterController; // YENİ: CharacterController referansı
+    private NetworkTransform _networkTransform; // NetworkTransform referansı
+    private CharacterController _characterController; // CharacterController referansı
 
     public delegate void HealthChangedDelegate(int newHealth, int maxHealth);
     public event HealthChangedDelegate OnHealthChangedEvent;
 
     public delegate void DeathDelegate(int attackerId);
-    public event DeathDelegate OnDeathEvent;
+    public event DeathDelegate OnDeathEvent; // Ölüm olayını dışarıya bildirmek için
 
     public bool IsDead => _isDead.Value;
 
@@ -60,7 +61,6 @@ public class HealthSystem : NetworkBehaviour
             Debug.LogWarning("PlayerController component not found. Player velocity reset and movement disabling features might not work.");
         }
 
-        // YENİ: NetworkTransform ve CharacterController referanslarını al
         _networkTransform = GetComponent<NetworkTransform>();
         if (_networkTransform == null) Debug.LogError("NetworkTransform component not found on player!");
         _characterController = GetComponent<CharacterController>();
@@ -70,22 +70,31 @@ public class HealthSystem : NetworkBehaviour
         {
             _currentHealth.Value = maxHealth;
             _isDead.Value = false;
+            // İlk spawn pozisyonunu sadece sunucu başlatıldığında bir kez al
+            // Bu, objenin sahneye yerleştirildiği yer veya spawn edildiği yer olabilir
             _initialSpawnPosition.Value = transform.position;
             Debug.Log($"[SERVER] Initialized HealthSystem for {gameObject.name}. Spawn Pos: {_initialSpawnPosition.Value}");
         }
     }
 
-    [Server]
-    public void TakeDamage(int amount, int attackerId = -1)
+    /// <summary>
+    /// Oyuncuya hasar verir. Sadece sunucuda çağrılır.
+    /// </summary>
+    /// <param name="amount">Hasar miktarı.</param>
+    /// <param name="attackerConn">Hasarı veren oyuncunun NetworkConnection'ı. Null olabilir (örn. çevre hasarı).</param>
+    [ServerRpc(RequireOwnership = false)] // RequireOwnership=false, çağrıyı yapan objenin sahibi olmak zorunda değil
+    public void ServerTakeDamage(int amount, NetworkConnection attackerConn) // RPC olarak tanımlandı
     {
+        if (!IsServerInitialized) return; // Sadece sunucuda çalış
+
         if (_isInvincible || _isDead.Value) return;
 
         _currentHealth.Value = Mathf.Max(0, _currentHealth.Value - amount);
-        Debug.Log($"[SERVER] {gameObject.name} took {amount} damage. HP now: {_currentHealth.Value}");
+        Debug.Log($"[SERVER] {gameObject.name} (Owner: {Owner.ClientId}) took {amount} damage from {(attackerConn != null ? attackerConn.ClientId.ToString() : "Environment")}. HP now: {_currentHealth.Value}");
 
         if (_currentHealth.Value <= 0)
         {
-            HandleDeath(attackerId);
+            HandleDeath(attackerConn); // NetworkConnection'ı HandleDeath'e ilet
         }
         else
         {
@@ -94,15 +103,50 @@ public class HealthSystem : NetworkBehaviour
         }
     }
 
-    [Server]
-    private void HandleDeath(int attackerId)
+    /// <summary>
+    /// Oyuncunun ölümünü yönetir. Sadece sunucuda çağrılır.
+    /// </summary>
+    /// <param name="killerConn">Oyuncuyu öldüren kişinin NetworkConnection'ı. Null olabilir (örn. çevre ölümü).</param>
+    [Server] // Bu metot bir RPC değil, Server'daki TakeDamage tarafından çağrılıyor
+    private void HandleDeath(NetworkConnection killerConn)
     {
         if (_isDead.Value) return;
 
         _isDead.Value = true;
         Debug.Log("[SERVER] Player died. Setting _isDead to true.");
 
-        OnDeathEvent?.Invoke(attackerId);
+        // Kendi ölüm skorunu güncelle (AddDeath)
+        if (ScoreManager.Instance != null)
+        {
+            int playerID = PlayerRegistry.GetPlayerIDByConnection(base.Owner);
+            ScoreManager.Instance.AddDeath(playerID);
+        }
+        else
+        {
+            Debug.LogWarning("[SERVER] ScoreManager.Instance is null for death update.");
+        }
+
+        // Öldürme skorunu güncelle (AddKill)
+        if (killerConn != null && killerConn != base.Owner && ScoreManager.Instance != null)
+        {
+            int killerID = PlayerRegistry.GetPlayerIDByConnection(killerConn);
+            ScoreManager.Instance.AddKill(killerID);
+        }
+        else if (killerConn == null)
+        {
+            Debug.LogWarning("[SERVER] Player died but killer connection was null (Environment kill?). Kill score not updated.");
+            OnDeathEvent?.Invoke(-1); // Çevre ölümü ise -1 ile bildir
+        }
+        else if (killerConn == base.Owner)
+        {
+            Debug.LogWarning($"[SERVER] Player (ID: {base.Owner.ClientId}) killed themselves. No kill score awarded.");
+            OnDeathEvent?.Invoke(base.Owner.ClientId); // Kendi kendini öldürdüyse kendi ID'sini bildir
+        }
+        else
+        {
+            Debug.LogWarning("[SERVER] ScoreManager.Instance is null for kill update.");
+        }
+
         PlayDeathEffectObserversRpc();
 
         // Ölen oyuncunun istemcisine hareketi durdurma komutu gönder
@@ -125,19 +169,21 @@ public class HealthSystem : NetworkBehaviour
         Respawn();
     }
 
+    /// <summary>
+    /// Oyuncuyu yeniden doğurur. Sadece sunucuda çağrılır.
+    /// </summary>
     [Server]
     public void Respawn()
     {
-        Debug.Log("[SERVER] Respawning player to initial spawn position.");
+        Debug.Log($"[SERVER] Respawning player (ID: {Owner.ClientId}) to initial spawn position: {_initialSpawnPosition.Value}");
 
         _currentHealth.Value = maxHealth;
         _isInvincible = false;
         _isDead.Value = false;
 
-        // YENİ: Respawn işlemi için NetworkTransform'u geçici olarak devre dışı bırak
-        // Bu, istemcinin kendi pozisyon güncellemesini durdurur ve sunucunun yetkisini güçlendirir.
+        // Respawn işlemi için NetworkTransform'u geçici olarak devre dışı bırak
         if (_networkTransform != null) _networkTransform.enabled = false;
-        // YENİ: CharacterController'ı da geçici olarak devre dışı bırak
+        // CharacterController'ı da geçici olarak devre dışı bırak
         if (_characterController != null) _characterController.enabled = false;
 
         // Sunucuda karakterin pozisyonunu ayarla
@@ -147,88 +193,102 @@ public class HealthSystem : NetworkBehaviour
             _playerController.ResetVelocity();
 
         // Oyuncunun kendi istemcisine doğru spawn pozisyonunu doğrudan ilet
-        // Bu RPC, istemcinin kendi pozisyonunu ayarlamasını sağlar.
         TargetTeleportToSpawn(Owner, _initialSpawnPosition.Value);
 
-        // YENİ: NetworkTransform'ı ve CharacterController'ı biraz sonra etkinleştir
-        // Bu, istemcinin pozisyonu alıp stabilize etmesine zaman tanır.
-        StartCoroutine(ReEnableMovementComponentsAfterTeleport(0.1f)); // Kısa bir gecikme
+        // NetworkTransform'ı ve CharacterController'ı biraz sonra etkinleştir
+        StartCoroutine(ReEnableMovementComponentsAfterTeleport(0.1f));
 
         // Oyuncunun kendi istemcisine hareketi etkinleştirme komutu gönder
         TargetSetPlayerMovementRpc(Owner, true);
     }
 
-    // YENİ COROUTINE: NetworkTransform ve CharacterController'ı yeniden etkinleştirmek için
+    /// <summary>
+    /// Sunucu tarafında NetworkTransform ve CharacterController'ı yeniden etkinleştirmek için Coroutine.
+    /// </summary>
     private IEnumerator ReEnableMovementComponentsAfterTeleport(float delay)
     {
-        yield return new WaitForSeconds(delay); // Kısa bir gecikme bekle
+        yield return new WaitForSeconds(delay);
 
-        if (IsServerInitialized) // Sadece sunucu tarafında bu bileşenleri tekrar etkinleştir
+        if (IsServerInitialized)
         {
             if (_networkTransform != null) _networkTransform.enabled = true;
             if (_characterController != null) _characterController.enabled = true;
-            Debug.Log("[SERVER] NetworkTransform and CharacterController re-enabled after teleport.");
+            Debug.Log("[SERVER] NetworkTransform and CharacterController re-enabled after teleport on server.");
         }
     }
 
-
+    /// <summary>
+    /// Oyuncuyu iyileştirir. Sadece sunucuda çağrılır.
+    /// </summary>
+    /// <param name="amount">İyileşme miktarı.</param>
     [Server]
     public void Heal(int amount)
     {
         if (_isDead.Value) return;
 
         _currentHealth.Value = Mathf.Min(maxHealth, _currentHealth.Value + amount);
-        Debug.Log($"[SERVER] Player healed {amount}. New HP: {_currentHealth.Value}");
+        Debug.Log($"[SERVER] Player (ID: {Owner.ClientId}) healed {amount}. New HP: {_currentHealth.Value}");
     }
 
+    /// <summary>
+    /// Sağlık değeri değiştiğinde çağrılan SyncVar olayı. Hem sunucuda hem istemcide tetiklenir.
+    /// </summary>
     private void OnHealthChanged(int previous, int current, bool asServer)
     {
         OnHealthChangedEvent?.Invoke(current, maxHealth);
-        Debug.Log($"[{(asServer ? "SERVER" : "CLIENT")}] HP: {previous} → {current}");
+        Debug.Log($"[{(asServer ? "SERVER" : "CLIENT")}] HP: {previous} → {current} for Player (ID: {Owner.ClientId})");
     }
 
+    /// <summary>
+    /// _isDead durumu değiştiğinde çağrılan SyncVar olayı. Hem sunucuda hem istemcide tetiklenir.
+    /// </summary>
     private void OnIsDeadChanged(bool previous, bool current, bool asServer)
     {
-        Debug.Log($"[{(asServer ? "SERVER" : "CLIENT")}] _isDead changed: {previous} → {current}");
+        Debug.Log($"[{(asServer ? "SERVER" : "CLIENT")}] _isDead changed: {previous} → {current} for Player (ID: {Owner.ClientId})");
 
-        if (IsOwner)
+        if (IsOwner) // Sadece kendi oyuncumuz için bu mantığı uygula
         {
-            if (current)
+            if (current) // Eğer oyuncu öldüyse
             {
                 Debug.Log($"[CLIENT {Owner.ClientId}] Kendi oyuncusu öldü. Hareket durduruluyor.");
                 _playerController?.SetMovementEnabled(false);
             }
-            else
+            else // Eğer oyuncu yeniden doğduysa
             {
                 Debug.Log($"[CLIENT {Owner.ClientId}] Kendi oyuncusu yeniden doğdu. Hareket etkinleştiriliyor.");
-                // Client tarafında hareketi etkinleştirme gecikmesini artırabiliriz
                 StartCoroutine(ClientReEnableMovementAfterRespawn(0.5f)); // Biraz daha uzun gecikme
             }
         }
     }
 
-    // TargetRpc: Sunucudan hedef istemciye pozisyonu doğrudan ışınlamak için
+    /// <summary>
+    /// Sunucudan hedef istemciye pozisyonu doğrudan ışınlamak için TargetRpc.
+    /// </summary>
+    /// <param name="conn">Hedef bağlantı.</param>
+    /// <param name="pos">Işınlanacak pozisyon.</param>
     [TargetRpc]
     private void TargetTeleportToSpawn(NetworkConnection conn, Vector3 pos)
     {
         Debug.Log($"[CLIENT {conn.ClientId}] TargetTeleportToSpawn RPC received. Teleporting to: {pos}");
 
-        // YENİ: İstemci tarafında da NetworkTransform ve CharacterController'ı geçici olarak devre dışı bırak
+        // İstemci tarafında da NetworkTransform ve CharacterController'ı geçici olarak devre dışı bırak
         if (_networkTransform != null) _networkTransform.enabled = false;
         if (_characterController != null) _characterController.enabled = false;
 
         transform.SetPositionAndRotation(pos, Quaternion.identity);
 
-        // YENİ: İstemci tarafında da bileşenleri biraz sonra tekrar etkinleştir
-        StartCoroutine(ClientReEnableMovementComponentsAfterTeleport(0.1f)); // Aynı kısa gecikme
+        // İstemci tarafında da bileşenleri biraz sonra tekrar etkinleştir
+        StartCoroutine(ClientReEnableMovementComponentsAfterTeleport(0.1f));
     }
 
-    // YENİ COROUTINE: İstemci tarafında NetworkTransform ve CharacterController'ı yeniden etkinleştirmek için
+    /// <summary>
+    /// İstemci tarafında NetworkTransform ve CharacterController'ı yeniden etkinleştirmek için Coroutine.
+    /// </summary>
     private IEnumerator ClientReEnableMovementComponentsAfterTeleport(float delay)
     {
         yield return new WaitForSeconds(delay);
 
-        if (IsOwner) // Sadece sahip olan istemci (kendisi) için
+        if (IsOwner) // Sadece kendi objemiz için
         {
             if (_networkTransform != null) _networkTransform.enabled = true;
             if (_characterController != null) _characterController.enabled = true;
@@ -236,7 +296,11 @@ public class HealthSystem : NetworkBehaviour
         }
     }
 
-
+    /// <summary>
+    /// Oyuncunun hareketini etkinleştirmek/devre dışı bırakmak için TargetRpc.
+    /// </summary>
+    /// <param name="conn">Hedef bağlantı.</param>
+    /// <param name="enabled">Hareketin etkin olup olmayacağı.</param>
     [TargetRpc]
     private void TargetSetPlayerMovementRpc(NetworkConnection conn, bool enabled)
     {
@@ -247,6 +311,9 @@ public class HealthSystem : NetworkBehaviour
         }
     }
 
+    /// <summary>
+    /// İstemci tarafında yeniden doğduktan sonra hareketin etkinleştirilmesi için gecikmeli Coroutine.
+    /// </summary>
     private IEnumerator ClientReEnableMovementAfterRespawn(float delay)
     {
         Debug.Log($"[CLIENT {Owner.ClientId}] ClientReEnableMovementAfterRespawn coroutine started. Waiting for {delay}s.");
@@ -255,6 +322,9 @@ public class HealthSystem : NetworkBehaviour
         _playerController?.SetMovementEnabled(true);
     }
 
+    /// <summary>
+    /// Hasar sesi ve efekti oynatmak için ObserversRpc.
+    /// </summary>
     [ObserversRpc]
     private void PlayHurtEffectObserversRpc()
     {
@@ -262,6 +332,9 @@ public class HealthSystem : NetworkBehaviour
             _audioSource.PlayOneShot(hurtSound);
     }
 
+    /// <summary>
+    /// Ölüm sesi ve efekti oynatmak için ObserversRpc.
+    /// </summary>
     [ObserversRpc]
     private void PlayDeathEffectObserversRpc()
     {

@@ -3,6 +3,9 @@ using UnityEngine.InputSystem;
 using FishNet.Object;
 using FishNet.Object.Synchronizing;
 using System.Collections;
+using FishNet.Connection;
+using Game.Stats; // PlayerStats sınıfın varsa kalacak, yoksa bu satırı sil
+using Game.Player; // PlayerRegistry'nin namespace'i
 
 namespace Game.Player
 {
@@ -31,6 +34,10 @@ namespace Game.Player
         [SerializeField] private LayerMask hitMask;
         [SerializeField] private Animator animator;
 
+        // PlayerRegistry.Register metodu için gerekli olan oyuncu adını tutan değişken
+        // Bu değeri gelecekte bir UI'dan alabilirsiniz. Şimdilik sabit bir değer kullanacağız.
+        [SerializeField] private string myPlayerName = "DefaultPlayer";
+
         private readonly SyncVar<float> syncedSpeed = new();
 
         private CharacterController characterController;
@@ -41,10 +48,10 @@ namespace Game.Player
         private bool isJumping;
         private bool isSprinting;
         private NetworkObject heldItem;
+        private PlayerStats stats; // PlayerStats scriptini sağladığında aktif olacak
 
         private bool _movementEnabled = true;
-
-        private float speedMultiplier = 1f; // 💡 YENİ
+        private float speedMultiplier = 1f;
 
         public int PlayerID { get; private set; }
         private static int playerIdCounter = 0;
@@ -52,9 +59,21 @@ namespace Game.Player
         public override void OnStartServer()
         {
             base.OnStartServer();
+            // PlayerID atamasını sadece sunucu tarafında yap
             PlayerID = playerIdCounter++;
-            PlayerRegistry.Register(PlayerID, Owner);
-            Debug.Log($"[SERVER] Player {Owner.ClientId} assigned PlayerID: {PlayerID}");
+
+            // PlayerRegistry.Register metoduna 3. parametre olarak playerName'i ekledik
+            PlayerRegistry.Register(PlayerID, Owner, myPlayerName);
+            Debug.Log($"[SERVER] Player {Owner.ClientId} assigned PlayerID: {PlayerID}, Name: {myPlayerName} on StartServer.");
+        }
+
+        public override void OnStopServer()
+        {
+            base.OnStopServer();
+            // Sunucuda durdurulduğunda (oyuncu bağlantısı kesildiğinde veya sahne değiştiğinde) kaydı sil
+            // PlayerRegistry'nin Deregister metodu içinde null kontrolü var.
+            PlayerRegistry.Deregister(Owner);
+            Debug.Log($"[SERVER] Player {Owner.ClientId} deregistered on StopServer.");
         }
 
         private void Awake()
@@ -66,7 +85,9 @@ namespace Game.Player
 
         private void Start()
         {
-            Debug.Log($"[CLIENT {Owner.ClientId}] My PlayerID: {PlayerID}");
+            stats = GetComponent<PlayerStats>();
+            if (stats == null)
+                Debug.LogError("❌ PlayerStats componenti bulunamadı! Lütfen PlayerStats scriptini sağlayın veya bu satırı silin.");
         }
 
         public override void OnStartClient()
@@ -171,7 +192,7 @@ namespace Game.Player
             }
 
             velocity.y += gravity * Time.deltaTime;
-            characterController.Move(velocity * Time.deltaTime); // line 171
+            characterController.Move(velocity * Time.deltaTime);
         }
 
         private bool IsGrounded()
@@ -300,7 +321,7 @@ namespace Game.Player
             if (targetObj != null && targetObj.TryGetComponent(out HealthSystem healthSystem))
             {
                 Debug.Log("[SERVER] Applying damage...");
-                healthSystem.TakeDamage(attackDamage, PlayerID);
+                healthSystem.ServerTakeDamage(20, base.Owner); // ✅ doğru değişken ismi
             }
         }
 
@@ -380,7 +401,5 @@ namespace Game.Player
         {
             speedMultiplier = 1f;
         }
-
-        
     }
 }
