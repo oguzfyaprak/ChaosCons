@@ -132,7 +132,11 @@ public class LobbyManager : MonoBehaviour
 
     public void OnClick_StartGame()
     {
-        if (!_networkManager.IsServerStarted || SteamMatchmaking.GetLobbyOwner(_currentLobbyID) != SteamUser.GetSteamID())
+        var localSteamId = SteamUser.GetSteamID();
+        var lobbyOwner = SteamMatchmaking.GetLobbyOwner(_currentLobbyID);
+        Debug.Log($"[StartGame] LocalSteamID: {localSteamId}, LobbyOwner: {lobbyOwner}");
+
+        if (!_networkManager.IsServerStarted || lobbyOwner != localSteamId)
         {
             Debug.LogWarning("Sadece lobi host'u oyunu baþlatabilir!");
             return;
@@ -143,6 +147,8 @@ public class LobbyManager : MonoBehaviour
             Debug.LogWarning("Tüm oyuncular hazýr deðil! Oyun baþlatýlamaz.");
             return;
         }
+
+  
 
         Debug.Log("Oyunu baþlatýlýyor... Ana oyun sahnesine geçiliyor.");
 
@@ -156,6 +162,7 @@ public class LobbyManager : MonoBehaviour
     public void OnClick_LeaveLobby()
     {
         Debug.Log("Lobiden ayrýlýyor...");
+
         if (_currentLobbyID.IsValid())
         {
             SteamMatchmaking.LeaveLobby(_currentLobbyID);
@@ -171,8 +178,17 @@ public class LobbyManager : MonoBehaviour
         {
             _networkManager.ClientManager.StopConnection();
         }
+
         _steamworksTransport.StopConnection(false);
 
+        // !!! BURADA BEKLE !!! Coroutine ile delay koyabilirsin veya Invoke("LoadMenu", 0.5f) gibi çözebilirsin.
+        Invoke(nameof(LoadMenuScene), 0.25f); // delay ekle
+
+        // Alternatif olarak sahne yüklemeyi tamamen coroutine ile yapabilirsin
+    }
+
+    private void LoadMenuScene()
+    {
         SceneLoadData sld = new SceneLoadData(mainMenuSceneName);
         sld.ReplaceScenes = ReplaceOption.All;
         _networkManager.SceneManager.LoadGlobalScenes(sld);

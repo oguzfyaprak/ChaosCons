@@ -169,6 +169,14 @@ public class MainMenuManager : MonoBehaviour
                 return;
             }
 
+            // ✅ FishNet sunucu başlatılmalı (Eksik olan buydu!)
+            if (!networkManager.IsServerStarted)
+            {
+                Debug.Log("MainMenuManager: FishNet sunucusu başlatılıyor...");
+                networkManager.ServerManager.StartConnection();
+            }
+
+            // ✅ Lobi sahnesini yükle
             SceneLoadData sldLobbyCreated = new SceneLoadData(lobbySceneName);
             sldLobbyCreated.ReplaceScenes = ReplaceOption.All;
             networkManager.SceneManager.LoadGlobalScenes(sldLobbyCreated);
@@ -180,6 +188,7 @@ public class MainMenuManager : MonoBehaviour
             steamworksTransportInstance.StopConnection(true);
         }
     }
+
 
     private void OnGameLobbyJoinRequested(GameLobbyJoinRequested_t result)
     {
