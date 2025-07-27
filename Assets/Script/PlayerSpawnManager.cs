@@ -1,12 +1,9 @@
 ﻿using UnityEngine;
-using UnityEngine.SceneManagement; // Unity'nin SceneManager'ı
+using System.Collections.Generic;
 using FishNet.Managing;
+using FishNet.Managing.Scened;
 using FishNet.Connection;
 using FishNet.Transporting;
-using System.Collections.Generic;
-using FishNet.Managing.Scened; // FishNet'in SceneManager'ı
-using System.Linq; // .Any() metodu için
-using System.Collections; // Coroutine'ler için
 
 public class PlayerSpawnManager : MonoBehaviour
 {
@@ -14,10 +11,8 @@ public class PlayerSpawnManager : MonoBehaviour
     private List<Transform> spawnPoints = new List<Transform>();
     private NetworkManager networkManager;
 
-    // Host için oyuncunun zaten spawn edilip edilmediğini takip eden bayrak
-    private bool _hostPlayerSpawned = false;
-    // MainMap sahnesinin hazır olup olmadığını takip eden bayrak
-    private bool _mainMapSceneReady = false;
+    // Sahnenin sunucu tarafında yüklenip yüklenmediğini ve spawn'a hazır olup olmadığını takip eder.
+    private bool _sceneReady = false;
 
     private void Awake()
     {
@@ -28,19 +23,12 @@ public class PlayerSpawnManager : MonoBehaviour
             return;
         }
 
-        // Zaten abone olduğumuz olaylar:
+        // Sadece sunucu tarafında gerçekleşen olaylara abone oluyoruz.
+        // Oyuncu spawn etme sorumluluğu tamamen sunucudadır.
         networkManager.ServerManager.OnRemoteConnectionState += ServerManager_OnRemoteConnectionState;
-        networkManager.ClientManager.OnClientConnectionState += ClientManager_OnClientConnectionState; // Bu zaten genel bir olay
 
-        // Eski sürümlerde olmayan OnServerStarted/OnClientStarted olaylarını kaldırıyoruz.
-        // Bu olayların işlevselliğini ClientManager_OnClientConnectionState içinde birleştireceğiz.
-        // networkManager.ServerManager.OnServerStarted += NetworkManager_OnServerStarted; // KALDIRILDI
-        // networkManager.ClientManager.OnClientStarted += NetworkManager_OnClientStarted;   // KALDIRILDI
-        // networkManager.ClientManager.OnClientStopped += NetworkManager_OnClientStopped;   // KALDIRILDI
-
-        UnityEngine.SceneManagement.SceneManager.sceneLoaded += OnSceneLoaded;
-
-        Debug.Log("PlayerSpawnManager: Awake tamamlandı, olaylara abone olundu.");
+        // FishNet'in kendi sahne yöneticisi olayına abone oluyoruz. Bu, Unity'nin OnSceneLoaded olayından daha güvenilirdir.
+        networkManager.SceneManager.OnLoadEnd += SceneManager_OnLoadEnd;
     }
 
     private void OnDestroy()
@@ -48,146 +36,78 @@ public class PlayerSpawnManager : MonoBehaviour
         if (networkManager != null)
         {
             networkManager.ServerManager.OnRemoteConnectionState -= ServerManager_OnRemoteConnectionState;
-            networkManager.ClientManager.OnClientConnectionState -= ClientManager_OnClientConnectionState;
-            // Olay abonelikleri kaldırıldı.
-            // networkManager.ServerManager.OnServerStarted -= NetworkManager_OnServerStarted; // KALDIRILDI
-            // networkManager.ClientManager.OnClientStarted -= NetworkManager_OnClientStarted;   // KALDIRILDI
-            // networkManager.ClientManager.OnClientStopped -= NetworkManager_OnClientStopped;   // KALDIRILDI
+            networkManager.SceneManager.OnLoadEnd -= SceneManager_OnLoadEnd;
         }
-        UnityEngine.SceneManagement.SceneManager.sceneLoaded -= OnSceneLoaded;
-        Debug.Log("PlayerSpawnManager: OnDestroy tamamlandı, olay abonelikleri bırakıldı.");
     }
 
-    // NetworkManager sunucu tarafı tamamen başladığında
-    // Bu metodu doğrudan bir olaya abone etmek yerine,
-    // ClientManager_OnClientConnectionState içinde IsServerStarted kontrolüyle kullanacağız.
-    // private void NetworkManager_OnServerStarted() { } // KALDIRILDI
-
-    // NetworkManager istemci tarafı tamamen başladığında
-    // Bu metodu doğrudan bir olaya abone etmek yerine,
-    // ClientManager_OnClientConnectionState içinde bağlantı durumuyla kullanacağız.
-    // private void NetworkManager_OnClientStarted() { } // KALDIRILDI
-
-    // NetworkManager istemci tarafı durduğunda
-    // Bu metodu doğrudan bir olaya abone etmek yerine,
-    // ClientManager_OnClientConnectionState içinde bağlantı durumuyla kullanacağız.
-    // private void NetworkManager_OnClientStopped() { } // KALDIRILDI
-
-
-    private void OnSceneLoaded(UnityEngine.SceneManagement.Scene scene, LoadSceneMode mode)
+    /// <summary>
+    /// FishNet'in sahne yükleme işlemi sunucu tarafında tamamlandığında bu metod tetiklenir.
+    /// </summary>
+    private void SceneManager_OnLoadEnd(SceneLoadEndEventArgs args)
     {
-        if (scene.name == "MainMap")
+        // Sadece sunucu tarafında çalışmasını sağlıyoruz. args.LoadedScenes boşsa bu client tarafıdır.
+        if (args.LoadedScenes == null || args.LoadedScenes.Length == 0)
+            return;
+
+        // Sadece MainMap yüklendiğinde işlem yap.
+        if (args.LoadedScenes[0].name == "MainMap")
         {
-            var foundPoints = GameObject.FindGameObjectsWithTag("RespawnPoint");
+            Debug.Log("✅ Sunucu tarafında MainMap sahnesi yüklendi. Spawn noktaları aranıyor...");
+
+            // Spawn noktalarını bul ve listeye ekle.
             spawnPoints.Clear();
+            var foundPoints = GameObject.FindGameObjectsWithTag("RespawnPoint");
             foreach (var go in foundPoints)
                 spawnPoints.Add(go.transform);
 
-            Debug.Log($"✅ {spawnPoints.Count} adet RespawnPoint bulundu. MainMap Sahnesi Hazır.");
-            _mainMapSceneReady = true; // Sahne hazır bayrağını işaretle
-            CheckAndSpawnHost(); // Sahne hazır, şimdi ağ bağlantılarını bekleyebiliriz
+            Debug.Log($"✅ {spawnPoints.Count} adet RespawnPoint bulundu.");
+
+            _sceneReady = true;
+
+            // ÖNEMLİ: Sahne yüklendiğinde, Host'un kendi oyuncusunu hemen spawn etmeliyiz.
+            // Host hem sunucu hem de istemcidir ve onun bağlantısı ClientManager üzerinden alınır.
+            if (networkManager.IsServerStarted)
+            {
+                Debug.Log("✨ Sahne hazır ve sunucu çalışıyor. Host oyuncusu spawn ediliyor...");
+                // ---------- HATA BURADAYDI, ŞİMDİ DÜZELTİLDİ ----------
+                SpawnPlayer(networkManager.ClientManager.Connection);
+                // --------------------------------------------------------
+            }
         }
         else
         {
-            _mainMapSceneReady = false; // Başka bir sahnedeysek sıfırla
-            _hostPlayerSpawned = false; // Sahne değiştiğinde host spawn bayrağını sıfırla (önemli)
+            _sceneReady = false;
         }
     }
 
-    // FishNet istemcisinin bağlantı durumu değiştiğinde çağrılır.
-    private void ClientManager_OnClientConnectionState(ClientConnectionStateArgs args)
-    {
-        // İstemci BAŞLADIYSA: Host veya diğer istemciler için kontrol
-        if (args.ConnectionState == LocalConnectionState.Started)
-        {
-            Debug.Log($"PlayerSpawnManager: FishNet İstemcisi Başlatıldı. Client ID: {networkManager.ClientManager.Connection.ClientId}");
-            CheckAndSpawnHost(); // İstemci başladı, şimdi diğer koşulları kontrol et
-        }
-        // İstemci DURDUYSA: Host spawn bayrağını sıfırla
-        else if (args.ConnectionState == LocalConnectionState.Stopped)
-        {
-            _hostPlayerSpawned = false;
-            Debug.Log("PlayerSpawnManager: FishNet İstemcisi Durduruldu, _hostPlayerSpawned sıfırlandı.");
-        }
-    }
-
-
-    // Yeni: Hem sunucu, hem istemci, hem de sahne hazır olduğunda spawn'ı tetikleyen merkezi kontrol
-    private void CheckAndSpawnHost()
-    {
-        // Sadece host için (ClientId 0) ve henüz spawn edilmemişse
-        // ve hem sunucu hem de istemci aktifse ve sahne hazırsa
-        if (networkManager.IsServerStarted &&
-            networkManager.IsClientStarted && // Client'ın da başlatıldığını doğrula
-            networkManager.ClientManager.Connection.ClientId == 0 && // Host'un client ID'si 0'dır
-            _mainMapSceneReady &&
-            !_hostPlayerSpawned)
-        {
-            Debug.Log("✨ Tüm koşullar sağlandı: Sunucu başlatıldı, İstemci başlatıldı, MainMap hazır. Host spawn ediliyor...");
-            // Çok küçük bir gecikme ekleyelim, belki de hala bazı bileşenler kuruluyordur
-            StartCoroutine(DelayedHostSpawn());
-        }
-        else
-        {
-            Debug.Log($"[CheckAndSpawnHost] Bekleniyor... Sunucu Başladı:{networkManager.IsServerStarted}, İstemci Başladı:{networkManager.IsClientStarted}, İstemci ID:{networkManager.ClientManager.Connection?.ClientId}, Sahne Hazır:{_mainMapSceneReady}, Spawn Edildi:{_hostPlayerSpawned}");
-        }
-    }
-
-    // Remote clientlar bağlandığında (Sunucu tarafında çalışır)
+    /// <summary>
+    /// Uzaktaki bir istemci sunucuya bağlandığında tetiklenir.
+    /// </summary>
     private void ServerManager_OnRemoteConnectionState(NetworkConnection conn, RemoteConnectionStateArgs args)
     {
+        // Sadece yeni bir bağlantı kurulduğunda (Started) işlem yap.
         if (args.ConnectionState != RemoteConnectionState.Started)
             return;
 
-        Debug.Log($"PlayerSpawnManager: ServerManager_OnRemoteConnectionState - Yeni istemci bağlandı: ClientId {conn.ClientId}");
-
-        // Host dışındaki diğer istemciler için oyuncuyu spawn et
-        // Sadece MainMap'teysak ve spawn noktaları hazırsa
-        if (conn.ClientId != 0 && _mainMapSceneReady)
+        // Host'un kendisi bu olayla tetiklenmez, bu sadece remote client'lar içindir.
+        // Eğer sahne hazırsa, yeni bağlanan istemci için hemen bir oyuncu spawn et.
+        if (_sceneReady)
         {
+            Debug.Log($"✨ Yeni istemci ({conn.ClientId}) bağlandı ve sahne hazır. Oyuncu spawn ediliyor...");
             SpawnPlayer(conn);
-        }
-        else if (!_mainMapSceneReady)
-        {
-            Debug.LogWarning($"⚠️ Client {conn.ClientId} bağlandı ama MainMap henüz hazır değil. Spawn için beklenecek.");
-        }
-    }
-
-    // Host oyuncusunu gecikmeli olarak spawn eden Coroutine
-    private IEnumerator DelayedHostSpawn()
-    {
-        // Daha önce denediğimiz 0.2f saniye yetmediyse, bunu biraz artırabiliriz.
-        // Amaç, tüm FishNet iç mekanizmalarının ve Unity'nin yaşam döngüsünün tam oturması.
-        yield return new WaitForSeconds(0.5f); // 0.5 saniye bekleyelim
-
-        TrySpawnLocalHost();
-    }
-
-
-    // Sadece Host (sunucu ve istemci aynı anda) için oyuncuyu spawn eder.
-    private void TrySpawnLocalHost()
-    {
-        if (_hostPlayerSpawned)
-        {
-            Debug.Log("PlayerSpawnManager: Host oyuncusu zaten spawn edilmiş, tekrar spawn edilmiyor.");
-            return;
-        }
-
-        NetworkConnection conn = networkManager.ClientManager.Connection;
-        // Son bir kontrol: Bağlantı hala aktif mi ve host mu?
-        if (conn != null && conn.ClientId == 0 && networkManager.IsServerStarted && conn.IsActive)
-        {
-            SpawnPlayer(conn);
-            _hostPlayerSpawned = true; // Host oyuncusunun spawn edildiğini işaretle
-            Debug.Log("PlayerSpawnManager: Host oyuncusu başarıyla spawn edildi.");
         }
         else
         {
-            Debug.LogWarning("PlayerSpawnManager: Host oyuncusu spawn edilemedi. Koşullar sağlanmadı veya bağlantı aktif değil.");
+            // Bu durum genellikle olmaz ama bir güvenlik önlemidir.
+            // Eğer istemci bir şekilde sahne yüklenmeden bağlanırsa, sahne yüklendiğinde
+            // tüm bağlı client'lar için spawn işlemi yapılabilir (bu kodda o kısım basitleştirildi).
+            Debug.LogWarning($"⚠️ Client {conn.ClientId} bağlandı ama sahne henüz hazır değil. Spawn için beklenecek.");
         }
     }
 
-    // Belirtilen bağlantı için bir oyuncu örneği oluşturup ağa spawn eder.
+    /// <summary>
+    /// Belirtilen bağlantı (connection) için oyuncuyu spawn eder. Hem Host hem de Client'lar için bu metod kullanılır.
+    /// </summary>
     private void SpawnPlayer(NetworkConnection conn)
     {
         if (playerPrefab == null)
@@ -201,12 +121,15 @@ public class PlayerSpawnManager : MonoBehaviour
             return;
         }
 
-        int index = (int)(conn.ClientId % spawnPoints.Count);
+        // Basit bir spawn noktası seçme algoritması.
+        int index = conn.ClientId % spawnPoints.Count;
         Transform spawnPoint = spawnPoints[index];
 
         GameObject playerInstance = Instantiate(playerPrefab, spawnPoint.position, spawnPoint.rotation);
-        // ÖNEMLİ: FishNet'in NetworkManager'ına playerPrefab'ın kayıtlı olduğundan emin olun!
+
+        // Sunucu, oluşturulan bu objeyi ağ üzerinde spawn eder ve sahipliğini 'conn' isimli bağlantıya verir.
         networkManager.ServerManager.Spawn(playerInstance, conn);
+
         Debug.Log($"✅ Oyuncu spawn edildi. ClientId: {conn.ClientId}, Konum: {spawnPoint.position}");
     }
 }
