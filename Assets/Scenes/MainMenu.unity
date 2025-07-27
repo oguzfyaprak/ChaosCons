@@ -401,7 +401,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ed432399197a6d04ab21492dd99db16e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  networkManager: {fileID: 0}
+  networkManager: {fileID: 500795862}
   mainMenuPanel: {fileID: 1748173893}
   lobbyJoinPanel: {fileID: 1038774888}
   settingsPanel: {fileID: 1525948355}
@@ -680,6 +680,17 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   playerPrefab: {fileID: 2056877680756426071, guid: ba2d903bfe0c3c043b27835043c3871a, type: 3}
+--- !u!114 &500795862 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 7443408887813606050, guid: 0b650fca685f2eb41a86538aa883e4c1, type: 3}
+  m_PrefabInstance: {fileID: 828345990}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 500795858}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d2c95dfde7d73b54dbbdc23155d35d36, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &508961326
 GameObject:
   m_ObjectHideFlags: 0
