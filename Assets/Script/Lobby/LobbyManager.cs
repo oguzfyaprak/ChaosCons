@@ -1,4 +1,4 @@
-using FishNet.Managing;
+ï»¿using FishNet.Managing;
 using Steamworks;
 using System.Text;
 using TMPro;
@@ -12,25 +12,25 @@ using System.Collections;
 
 public class LobbyManager : MonoBehaviour
 {
-    // Konstante tanýmlarý
-    private const string V = "Yükleniyor...";
+    // Konstante tanÄ±mlarÄ±
+    private const string V = "YÃ¼kleniyor...";
 
     // --- MainMenuManager'dan gelen Referanslar ---
     private NetworkManager _networkManager;
     private FishySteamworks.FishySteamworks _steamworksTransport;
 
-    // UI Referanslarý
+    // UI ReferanslarÄ±
     private TMP_Text _lobbyIdText;
     private TMP_Text _playerListText;
     private GameObject _startGameButton;
     private GameObject _leaveLobbyButton;
     private GameObject _readyButton;
-    private string _mainGameSceneName; // Ana oyun sahnesinin adý (MainMenuManager'dan alýnacak)
+    private string _mainGameSceneName; // Ana oyun sahnesinin adÄ± (MainMenuManager'dan alÄ±nacak)
 
     // Lobi Bilgisi
-    private CSteamID _currentLobbyID; // Anlýk olarak baðlý olunan lobi ID'si
+    private CSteamID _currentLobbyID; // AnlÄ±k olarak baÄŸlÄ± olunan lobi ID'si
 
-    // Initialize fonksiyonu MainMenuManager tarafýndan çaðrýlacak
+    // Initialize fonksiyonu MainMenuManager tarafÄ±ndan Ã§aÄŸrÄ±lacak
     public void Initialize(NetworkManager nm, FishySteamworks.FishySteamworks fst,
                             TMP_Text lobbyIdTxt, TMP_Text playerListTxt,
                             GameObject startGameBtn, GameObject leaveLobbyBtn,
@@ -45,30 +45,30 @@ public class LobbyManager : MonoBehaviour
         _readyButton = readyBtn;
         _mainGameSceneName = mainGameScene;
 
-        // UI buton olaylarýný burada dinlemeye baþla (önceki hata düzeltmeleri uygulandý)
+        // UI buton olaylarÄ±nÄ± burada dinlemeye baÅŸla (Ã¶nceki hata dÃ¼zeltmeleri uygulandÄ±)
         if (_startGameButton != null)
         {
             if (_startGameButton.TryGetComponent<Button>(out var button)) button.onClick.AddListener(OnClick_StartGame);
-            else Debug.LogWarning("LobbyManager: StartGameButton üzerinde UnityEngine.UI.Button bileþeni bulunamadý.");
+            else Debug.LogWarning("LobbyManager: StartGameButton Ã¼zerinde UnityEngine.UI.Button bileÅŸeni bulunamadÄ±.");
         }
-        else Debug.LogWarning("LobbyManager: _startGameButton referansý atanmamýþ!");
+        else Debug.LogWarning("LobbyManager: _startGameButton referansÄ± atanmamÄ±ÅŸ!");
 
         if (_leaveLobbyButton != null)
         {
             if (_leaveLobbyButton.TryGetComponent<Button>(out var button)) button.onClick.AddListener(OnClick_LeaveLobby);
-            else Debug.LogWarning("LobbyManager: LeaveLobbyButton üzerinde UnityEngine.UI.Button bileþeni bulunamadý.");
+            else Debug.LogWarning("LobbyManager: LeaveLobbyButton Ã¼zerinde UnityEngine.UI.Button bileÅŸeni bulunamadÄ±.");
         }
-        else Debug.LogWarning("LobbyManager: _leaveLobbyButton referansý atanmamýþ!");
+        else Debug.LogWarning("LobbyManager: _leaveLobbyButton referansÄ± atanmamÄ±ÅŸ!");
 
         if (_readyButton != null)
         {
             if (_readyButton.TryGetComponent<Button>(out var button)) button.onClick.AddListener(OnClick_Ready);
-            else Debug.LogWarning("LobbyManager: ReadyButton üzerinde UnityEngine.UI.Button bileþeni bulunamadý.");
+            else Debug.LogWarning("LobbyManager: ReadyButton Ã¼zerinde UnityEngine.UI.Button bileÅŸeni bulunamadÄ±.");
         }
-        else Debug.LogWarning("LobbyManager: _readyButton referansý atanmamýþ!");
+        else Debug.LogWarning("LobbyManager: _readyButton referansÄ± atanmamÄ±ÅŸ!");
     }
 
-    // Lobi UI'ýný baþlatma (MainMenuManager tarafýndan lobiye girildiðinde çaðrýlýr)
+    // Lobi UI'Ä±nÄ± baÅŸlatma (MainMenuManager tarafÄ±ndan lobiye girildiÄŸinde Ã§aÄŸrÄ±lÄ±r)
     public void InitializeLobbyUI(CSteamID lobbyID)
     {
         _currentLobbyID = lobbyID;
@@ -76,31 +76,31 @@ public class LobbyManager : MonoBehaviour
         {
             _lobbyIdText.text = $"Lobi ID: {_currentLobbyID.m_SteamID}";
             GUIUtility.systemCopyBuffer = _currentLobbyID.m_SteamID.ToString(); // Lobi ID'yi panoya kopyala
-            Debug.Log($"Lobi ID panoya kopyalandý: {_currentLobbyID.m_SteamID}");
+            Debug.Log($"Lobi ID panoya kopyalandÄ±: {_currentLobbyID.m_SteamID}");
         }
 
-        // Lobiye girer girmez tüm üyelerin bilgilerini talep et.
+        // Lobiye girer girmez tÃ¼m Ã¼yelerin bilgilerini talep et.
         int numMembers = SteamMatchmaking.GetNumLobbyMembers(_currentLobbyID);
         for (int i = 0; i < numMembers; i++)
         {
             CSteamID memberSteamID = SteamMatchmaking.GetLobbyMemberByIndex(_currentLobbyID, i);
-            // Oyuncunun bilgilerini önceden talep et. Bu, GetFriendPersonaName'in daha doðru çalýþmasýna yardýmcý olur.
+            // Oyuncunun bilgilerini Ã¶nceden talep et. Bu, GetFriendPersonaName'in daha doÄŸru Ã§alÄ±ÅŸmasÄ±na yardÄ±mcÄ± olur.
             SteamFriends.RequestUserInformation(memberSteamID, false);
         }
 
-        UpdatePlayerList(); // Baþlangýçta oyuncu listesini güncelle
+        UpdatePlayerList(); // BaÅŸlangÄ±Ã§ta oyuncu listesini gÃ¼ncelle
 
-        // Buton görünürlüklerini ayarla: Host ise Oyunu Baþlat, Client ise Hazýr Ol
+        // Buton gÃ¶rÃ¼nÃ¼rlÃ¼klerini ayarla: Host ise Oyunu BaÅŸlat, Client ise HazÄ±r Ol
         if (SteamMatchmaking.GetLobbyOwner(_currentLobbyID) == SteamUser.GetSteamID()) // Host ise
         {
             if (_startGameButton != null) _startGameButton.SetActive(true);
-            if (_readyButton != null) _readyButton.SetActive(false); // Host'un hazýr olmasý gerekmez
+            if (_readyButton != null) _readyButton.SetActive(false); // Host'un hazÄ±r olmasÄ± gerekmez
         }
         else // Client ise
         {
             if (_startGameButton != null) _startGameButton.SetActive(false);
             if (_readyButton != null) _readyButton.SetActive(true);
-            UpdateReadyButtonState(); // Hazýr butonu durumunu güncelle
+            UpdateReadyButtonState(); // HazÄ±r butonu durumunu gÃ¼ncelle
         }
     }
 
@@ -110,35 +110,35 @@ public class LobbyManager : MonoBehaviour
         var lobbyOwner = SteamMatchmaking.GetLobbyOwner(_currentLobbyID);
         Debug.Log($"[StartGame] LocalSteamID: {localSteamId}, LobbyOwner: {lobbyOwner}");
 
-        // Sadece lobi host'u ve sunucu aktifse oyunu baþlatabilir
+        // Sadece lobi host'u ve sunucu aktifse oyunu baÅŸlatabilir
         if (!_networkManager.IsServerStarted || lobbyOwner != localSteamId)
         {
-            Debug.LogWarning("Sadece lobi host'u oyunu baþlatabilir ve sunucu aktif olmalýdýr!");
+            Debug.LogWarning("Sadece lobi host'u oyunu baÅŸlatabilir ve sunucu aktif olmalÄ±dÄ±r!");
             return;
         }
 
-        // Tüm oyuncular hazýr mý kontrol et
+        // TÃ¼m oyuncular hazÄ±r mÄ± kontrol et
         if (!AreAllPlayersReady())
         {
-            Debug.LogWarning("Tüm oyuncular hazýr deðil! Oyun baþlatýlamaz.");
+            Debug.LogWarning("TÃ¼m oyuncular hazÄ±r deÄŸil! Oyun baÅŸlatÄ±lamaz.");
             return;
         }
 
-        Debug.Log("Oyunu baþlatýlýyor... Ana oyun sahnesine geçiliyor.");
+        Debug.Log("Oyunu baÅŸlatÄ±lÄ±yor... Ana oyun sahnesine geÃ§iliyor.");
 
-        // Lobide oyunun baþladýðýný belirten bir veri ayarla
+        // Lobide oyunun baÅŸladÄ±ÄŸÄ±nÄ± belirten bir veri ayarla
         SteamMatchmaking.SetLobbyData(_currentLobbyID, "GameStarted", "true");
 
-        // Sunucu olarak ana oyun sahnesine geçiþi FishNet ile yap
-        // Client'lar MainMenuManager'ýn LobbyDataUpdate callback'i ile bu veriyi görüp kendi sahnelerini yükleyecek.
-        MainMenuManager mainMenu = FindFirstObjectByType<MainMenuManager>(); // MainMenuManager'a eriþim
+        // Sunucu olarak ana oyun sahnesine geÃ§iÅŸi FishNet ile yap
+        // Client'lar MainMenuManager'Ä±n LobbyDataUpdate callback'i ile bu veriyi gÃ¶rÃ¼p kendi sahnelerini yÃ¼kleyecek.
+        MainMenuManager mainMenu = FindFirstObjectByType<MainMenuManager>(); // MainMenuManager'a eriÅŸim
         if (mainMenu != null)
         {
             mainMenu.LoadMainGameScene();
         }
         else
         {
-            Debug.LogError("LobbyManager: MainMenuManager bulunamadý! Sahne yüklenemedi.");
+            Debug.LogError("LobbyManager: MainMenuManager bulunamadÄ±! Sahne yÃ¼klenemedi.");
         }
     }
 
@@ -157,7 +157,7 @@ public class LobbyManager : MonoBehaviour
         }
         else
         {
-            Debug.LogError("MainMenuManager bulunamadý. Ana menüye dönemedi.");
+            Debug.LogError("MainMenuManager bulunamadÄ±. Ana menÃ¼ye dÃ¶nemedi.");
         }
     }
 
@@ -171,10 +171,10 @@ public class LobbyManager : MonoBehaviour
         string newReadyStatus = isCurrentlyReady ? "false" : "true";
         SteamMatchmaking.SetLobbyMemberData(_currentLobbyID, "ReadyStatus", newReadyStatus);
 
-        Debug.Log($"Hazýr durumu güncellendi: {newReadyStatus}");
+        Debug.Log($"HazÄ±r durumu gÃ¼ncellendi: {newReadyStatus}");
     }
 
-    // Hazýr butonu metnini ve durumunu günceller
+    // HazÄ±r butonu metnini ve durumunu gÃ¼nceller
     public void UpdateReadyButtonState()
     {
         if (_readyButton == null) return;
@@ -182,8 +182,8 @@ public class LobbyManager : MonoBehaviour
         if (!_currentLobbyID.IsValid())
         {
             TMP_Text buttonTextInvalid = _readyButton.GetComponentInChildren<TMP_Text>();
-            if (buttonTextInvalid != null) buttonTextInvalid.text = "Geçersiz Lobi";
-            _readyButton.SetActive(false); // Geçersiz lobi ise butonu kapat
+            if (buttonTextInvalid != null) buttonTextInvalid.text = "GeÃ§ersiz Lobi";
+            _readyButton.SetActive(false); // GeÃ§ersiz lobi ise butonu kapat
             return;
         }
 
@@ -193,49 +193,47 @@ public class LobbyManager : MonoBehaviour
         TMP_Text buttonText = _readyButton.GetComponentInChildren<TMP_Text>();
         if (buttonText != null)
         {
-            buttonText.text = isCurrentlyReady ? "Hazýr (Bekle)" : "Hazýr Ol";
+            buttonText.text = isCurrentlyReady ? "HazÄ±r (Bekle)" : "HazÄ±r Ol";
         }
     }
 
-    // --- Yardýmcý Fonksiyonlar ---
-    // Oyuncu listesini günceller ve UI'a yansýtýr.
+    // --- YardÄ±mcÄ± Fonksiyonlar ---
+    // Oyuncu listesini gÃ¼nceller ve UI'a yansÄ±tÄ±r.
     private Coroutine _refreshCoroutine;
 
     public void UpdatePlayerList()
     {
         if (_playerListText == null)
         {
-            Debug.LogError("LobbyManager: _playerListText GameObject'i atanmamýþ! Lütfen Unity Inspector'da atayýn.");
-            return; // Eðer UI elementý atanmamýþsa daha fazla devam etme
+            Debug.LogError("LobbyManager: _playerListText GameObject'i atanmamÄ±ÅŸ! LÃ¼tfen Unity Inspector'da atayÄ±n.");
+            return;
         }
 
         if (!_currentLobbyID.IsValid())
         {
-            _playerListText.text = "Lobiye baðlý deðil.";
-            return; // Geçerli bir lobi ID'si yoksa devam etme
+            _playerListText.text = "Lobiye baÄŸlÄ± deÄŸil.";
+            return;
         }
 
-        // Bu KONTROL ÇOK ÖNEMLÝ: Steam API'si hazýr deðilse hemen çýk
         if (!SteamManager.Initialized)
         {
-            _playerListText.text = "Steam baþlatýlamadý veya hazýr deðil.";
-            Debug.LogWarning("SteamManager baþlatýlmamýþ veya henüz hazýr deðil. Oyuncu listesi çekilemiyor.");
-            return; // Steam hazýr deðilse hemen çýk
+            _playerListText.text = "Steam baÅŸlatÄ±lamadÄ± veya hazÄ±r deÄŸil.";
+            Debug.LogWarning("SteamManager baÅŸlatÄ±lmamÄ±ÅŸ veya henÃ¼z hazÄ±r deÄŸil. Oyuncu listesi Ã§ekilemiyor.");
+            return;
         }
 
         StringBuilder sb = new("Oyuncular:\n");
         int numMembers = SteamMatchmaking.GetNumLobbyMembers(_currentLobbyID);
-        bool hasUnknownNames = false;
 
         for (int i = 0; i < numMembers; i++)
         {
             CSteamID memberSteamID = SteamMatchmaking.GetLobbyMemberByIndex(_currentLobbyID, i);
-            string personaName;
+            string personaName = "Player"; // ðŸ” VarsayÄ±lan deÄŸer
 
             if (!memberSteamID.IsValid())
             {
-                Debug.LogWarning($"[LobbyManager] Geçersiz Steam ID bulundu: {memberSteamID}");
-                personaName = "Geçersiz Oyuncu";
+                Debug.LogWarning($"[LobbyManager] GeÃ§ersiz Steam ID bulundu: {memberSteamID}");
+                personaName = "Player";
             }
             else
             {
@@ -245,27 +243,19 @@ public class LobbyManager : MonoBehaviour
                 {
                     if (memberSteamID == SteamUser.GetSteamID())
                     {
-                        personaName = SteamFriends.GetPersonaName(); // kendi adýn için daha güvenli
+                        personaName = SteamFriends.GetPersonaName();
                     }
                     else
                     {
                         string fetchedName = SteamFriends.GetFriendPersonaName(memberSteamID);
-                        if (string.IsNullOrEmpty(fetchedName) || fetchedName == "[unknown]")
-                        {
-                            personaName = V;
-                            hasUnknownNames = true;
-                        }
-                        else
-                        {
+                        if (!string.IsNullOrEmpty(fetchedName) && fetchedName != "[unknown]")
                             personaName = fetchedName;
-                        }
                     }
                 }
-                catch (Exception ex)
+                catch (System.Exception ex)
                 {
-                    Debug.LogWarning($"[LobbyManager] Steam ID {memberSteamID} için PersonaName alýnamadý: {ex.Message}");
-                    personaName = V;
-                    hasUnknownNames = true;
+                    Debug.LogWarning($"[LobbyManager] Steam ID {memberSteamID} iÃ§in isim alÄ±namadÄ±: {ex.Message}");
+                    // personaName zaten "Player"
                 }
             }
 
@@ -275,19 +265,13 @@ public class LobbyManager : MonoBehaviour
             string readyIndicator = "";
             if (hostIndicator != " (Host)")
             {
-                readyIndicator = (readyStatus == "true") ? " (Hazýr)" : " (Hazýr Deðil)";
+                readyIndicator = (readyStatus == "true") ? " (HazÄ±r)" : " (HazÄ±r DeÄŸil)";
             }
 
             sb.AppendLine($"- {personaName}{hostIndicator}{readyIndicator}");
         }
 
         _playerListText.text = sb.ToString();
-
-        if (hasUnknownNames)
-        {
-            if (_refreshCoroutine != null) StopCoroutine(_refreshCoroutine);
-            _refreshCoroutine = StartCoroutine(RefreshPlayerListWithDelay());
-        }
     }
 
     private IEnumerator RefreshPlayerListWithDelay()
@@ -296,20 +280,20 @@ public class LobbyManager : MonoBehaviour
         UpdatePlayerList();
     }
 
-    // Tüm oyuncularýn hazýr olup olmadýðýný kontrol eder.
+    // TÃ¼m oyuncularÄ±n hazÄ±r olup olmadÄ±ÄŸÄ±nÄ± kontrol eder.
     private bool AreAllPlayersReady()
     {
         if (!_currentLobbyID.IsValid()) return false;
 
         int numMembers = SteamMatchmaking.GetNumLobbyMembers(_currentLobbyID);
-        // Eðer lobide sadece host varsa, oyunu direkt baþlatabilir (hazýr olmasýna gerek yok).
+        // EÄŸer lobide sadece host varsa, oyunu direkt baÅŸlatabilir (hazÄ±r olmasÄ±na gerek yok).
         if (numMembers <= 1) return true;
 
         for (int i = 0; i < numMembers; i++)
         {
             CSteamID memberSteamID = SteamMatchmaking.GetLobbyMemberByIndex(_currentLobbyID, i);
 
-            // Host oyuncunun hazýr olmasýna gerek yoktur, oyunu baþlatan odur.
+            // Host oyuncunun hazÄ±r olmasÄ±na gerek yoktur, oyunu baÅŸlatan odur.
             if (memberSteamID == SteamMatchmaking.GetLobbyOwner(_currentLobbyID))
             {
                 continue; // Host'u kontrol etme
@@ -318,9 +302,9 @@ public class LobbyManager : MonoBehaviour
             string readyStatus = SteamMatchmaking.GetLobbyMemberData(_currentLobbyID, memberSteamID, "ReadyStatus");
             if (readyStatus != "true")
             {
-                return false; // Bir kiþi bile hazýr deðilse false döndür
+                return false; // Bir kiÅŸi bile hazÄ±r deÄŸilse false dÃ¶ndÃ¼r
             }
         }
-        return true; // Herkes hazýr
+        return true; // Herkes hazÄ±r
     }
 }
