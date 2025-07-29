@@ -203,28 +203,36 @@ public class LobbyManager : MonoBehaviour
         for (int i = 0; i < numMembers; i++)
         {
             CSteamID memberSteamID = SteamMatchmaking.GetLobbyMemberByIndex(_currentLobbyID, i);
-            string personaName;
+            string personaName = "Bilinmeyen Oyuncu";
 
             if (memberSteamID.IsValid())
             {
-                if (memberSteamID == SteamUser.GetSteamID()) // Yerel oyuncu
+                try
                 {
-                    personaName = SteamFriends.GetPersonaName();
-                }
-                else // Diðer oyuncular
-                {
-                    personaName = SteamFriends.GetFriendPersonaName(memberSteamID);
-                    if (string.IsNullOrEmpty(personaName) || personaName == "[unknown]")
+                    // Kendi adýný çekmek için ayrý kontrol
+                    if (memberSteamID == SteamUser.GetSteamID())
                     {
-                        personaName = "Yükleniyor...";
-                        SteamFriends.RequestUserInformation(memberSteamID, false); // Bilgiyi iste
+                        personaName = SteamFriends.GetPersonaName();
                     }
+                    else
+                    {
+                        personaName = SteamFriends.GetFriendPersonaName(memberSteamID);
+                        if (string.IsNullOrEmpty(personaName) || personaName == "[unknown]")
+                        {
+                            personaName = "Yükleniyor...";
+                            SteamFriends.RequestUserInformation(memberSteamID, false);
+                        }
+                    }
+                }
+                catch (System.Exception e)
+                {
+                    Debug.LogWarning($"[LobbyManager] Steam adý alýnamadý: {e.Message} - ID: {memberSteamID}");
+                    personaName = "Bilinmeyen Oyuncu";
                 }
             }
             else
             {
-                personaName = "Bilinmeyen Oyuncu";
-                Debug.LogWarning($"Geçersiz Steam ID bulundu: {memberSteamID}");
+                Debug.LogWarning($"[LobbyManager] Geçersiz Steam ID bulundu: {memberSteamID}");
             }
 
             string hostIndicator = (memberSteamID == SteamMatchmaking.GetLobbyOwner(_currentLobbyID)) ? " (Host)" : "";
@@ -235,6 +243,10 @@ public class LobbyManager : MonoBehaviour
         }
 
         _playerListText.text = sb.ToString();
+    
+
+
+    _playerListText.text = sb.ToString();
     }
 
     // Tüm oyuncularýn hazýr olup olmadýðýný kontrol eder.
