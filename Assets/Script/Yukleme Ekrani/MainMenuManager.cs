@@ -106,10 +106,8 @@ public class MainMenuManager : MonoBehaviour
         // Sunucunun kendi bağlantı durumu için
         networkManager.ServerManager.OnServerConnectionState += OnServerConnectionStateChanged;
 
-
         // LobbyManager instance'ını al (bu script ile aynı GameObject üzerinde olmalı)
-        _lobbyManagerInstance = GetComponent<LobbyManager>();
-        if (_lobbyManagerInstance == null)
+        if (!TryGetComponent<LobbyManager>(out _lobbyManagerInstance))
         {
             Debug.LogError("MainMenuManager: LobbyManager bulunamadı! Lütfen bu GameObject'e bir LobbyManager bileşeni ekleyin.");
         }
@@ -214,7 +212,7 @@ public class MainMenuManager : MonoBehaviour
 
         if (ulong.TryParse(lobbyIdString, out ulong lobbyIDasULong))
         {
-            CSteamID lobbySteamID = new CSteamID(lobbyIDasULong);
+            CSteamID lobbySteamID = new(lobbyIDasULong);
             Debug.Log($"MainMenuManager: Lobiye {lobbySteamID} ID ile katılınıyor...");
             SteamMatchmaking.JoinLobby(lobbySteamID);
         }
@@ -422,8 +420,10 @@ public class MainMenuManager : MonoBehaviour
     public void LoadMainGameScene()
     {
         Debug.Log("MainMenuManager: Ana oyun sahnesi yükleniyor...");
-        SceneLoadData sld = new SceneLoadData(mainGameSceneName);
-        sld.ReplaceScenes = ReplaceOption.All; // Mevcut tüm sahneleri yeni sahne ile değiştir
+        SceneLoadData sld = new(mainGameSceneName)
+        {
+            ReplaceScenes = ReplaceOption.All // Mevcut tüm sahneleri yeni sahne ile değiştir
+        };
         networkManager.SceneManager.LoadGlobalScenes(sld);
     }
 

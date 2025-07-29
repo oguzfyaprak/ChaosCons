@@ -779,7 +779,7 @@ MonoBehaviour:
   _componentIndexCache: 255
   _addedNetworkObject: {fileID: 109559271}
   _networkObjectCache: {fileID: 0}
-  ownerPlayerID: 0
+  ownerPlayerID: 7
   buildingRoot: {fileID: 1872827123}
   buildingStages:
   - {fileID: 796233042360391432, guid: fb5f84afb9636594d8d7cbd4a3e18126, type: 3}
@@ -959,7 +959,7 @@ MonoBehaviour:
   _componentIndexCache: 255
   _addedNetworkObject: {fileID: 126980820}
   _networkObjectCache: {fileID: 0}
-  ownerPlayerID: 7
+  ownerPlayerID: 6
   buildingRoot: {fileID: 464851352}
   buildingStages:
   - {fileID: 796233042360391432, guid: fb5f84afb9636594d8d7cbd4a3e18126, type: 3}
@@ -1542,7 +1542,7 @@ MonoBehaviour:
   _componentIndexCache: 255
   _addedNetworkObject: {fileID: 237440067}
   _networkObjectCache: {fileID: 0}
-  ownerPlayerID: 6
+  ownerPlayerID: 5
   buildingRoot: {fileID: 114262816}
   buildingStages:
   - {fileID: 796233042360391432, guid: fb5f84afb9636594d8d7cbd4a3e18126, type: 3}
@@ -2312,7 +2312,7 @@ MonoBehaviour:
   _componentIndexCache: 255
   _addedNetworkObject: {fileID: 536991023}
   _networkObjectCache: {fileID: 0}
-  ownerPlayerID: 3
+  ownerPlayerID: 2
   buildingRoot: {fileID: 845231166}
   buildingStages:
   - {fileID: 796233042360391432, guid: fb5f84afb9636594d8d7cbd4a3e18126, type: 3}
@@ -3806,7 +3806,7 @@ MonoBehaviour:
   _componentIndexCache: 255
   _addedNetworkObject: {fileID: 1010572439}
   _networkObjectCache: {fileID: 0}
-  ownerPlayerID: 2
+  ownerPlayerID: 1
   buildingRoot: {fileID: 325099126}
   buildingStages:
   - {fileID: 796233042360391432, guid: fb5f84afb9636594d8d7cbd4a3e18126, type: 3}
@@ -3969,7 +3969,7 @@ MonoBehaviour:
   _componentIndexCache: 255
   _addedNetworkObject: {fileID: 1038518667}
   _networkObjectCache: {fileID: 0}
-  ownerPlayerID: 1
+  ownerPlayerID: 0
   buildingRoot: {fileID: 102601429}
   buildingStages:
   - {fileID: 796233042360391432, guid: fb5f84afb9636594d8d7cbd4a3e18126, type: 3}
@@ -5450,6 +5450,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1690145384}
   - component: {fileID: 1690145383}
+  - component: {fileID: 1690145385}
   m_Layer: 0
   m_Name: ItemSpawnPoints
   m_TagString: Untagged
@@ -5523,6 +5524,21 @@ Transform:
   - {fileID: 2029519134}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1690145385
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1690145382}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8a6a39c46bf52104ba8efe3100bce3f7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _componentIndexCache: 255
+  _addedNetworkObject: {fileID: 1690145383}
+  _networkObjectCache: {fileID: 0}
 --- !u!1 &1690785964
 GameObject:
   m_ObjectHideFlags: 0
@@ -5747,7 +5763,7 @@ MonoBehaviour:
   _componentIndexCache: 255
   _addedNetworkObject: {fileID: 1772856121}
   _networkObjectCache: {fileID: 0}
-  ownerPlayerID: 5
+  ownerPlayerID: 4
   buildingRoot: {fileID: 1729015688}
   buildingStages:
   - {fileID: 796233042360391432, guid: fb5f84afb9636594d8d7cbd4a3e18126, type: 3}
@@ -6199,7 +6215,7 @@ MonoBehaviour:
   _componentIndexCache: 255
   _addedNetworkObject: {fileID: 1946138011}
   _networkObjectCache: {fileID: 0}
-  ownerPlayerID: 4
+  ownerPlayerID: 3
   buildingRoot: {fileID: 344424082}
   buildingStages:
   - {fileID: 796233042360391432, guid: fb5f84afb9636594d8d7cbd4a3e18126, type: 3}

@@ -3,13 +3,14 @@ using UnityEngine.InputSystem;
 using FishNet.Object;
 using FishNet.Connection;
 using System.Collections;
+using System;
 
 [RequireComponent(typeof(CharacterController))]
 [RequireComponent(typeof(PlayerInput))]
 public class PlayerItemHandler : NetworkBehaviour
 {
     [Header("References")]
-    public Transform itemHoldPoint;
+    public Transform itemHoldPoint; // El veya tutma noktası
     [SerializeField] private Camera playerCamera;
 
     [Header("Settings")]
@@ -18,43 +19,16 @@ public class PlayerItemHandler : NetworkBehaviour
     [SerializeField] private float pickupRange = 3f;
     [SerializeField] private float dropHeightOffset = 0.3f;
     [SerializeField] private float throwForce = 1.5f;
-    [SerializeField] private float positionLerpSpeed = 15f;
     [SerializeField] private float groundCheckDistance = 1.5f;
     [SerializeField] private float itemDropDelay = 0.1f;
 
     private GameObject heldItem = null;
-    private Vector3 lastSentPosition;
-    private Quaternion lastSentRotation;
+    private NetworkObject itemHoldPointNetObj;
 
     private void Awake()
     {
         if (playerCamera == null)
             playerCamera = Camera.main;
-    }
-
-    private void Update()
-    {
-        if (!IsOwner) return;
-
-        if (heldItem != null)
-            SyncHeldItemPosition();
-    }
-
-    private void SyncHeldItemPosition()
-    {
-        if (heldItem == null) return;
-
-        heldItem.transform.position = Vector3.Lerp(
-            heldItem.transform.position,
-            itemHoldPoint.position,
-            Time.deltaTime * positionLerpSpeed
-        );
-
-        heldItem.transform.rotation = Quaternion.Slerp(
-            heldItem.transform.rotation,
-            itemHoldPoint.rotation,
-            Time.deltaTime * positionLerpSpeed
-        );
     }
 
     public void OnInteract(InputAction.CallbackContext context)
@@ -71,7 +45,7 @@ public class PlayerItemHandler : NetworkBehaviour
     {
         if (playerCamera == null) return;
 
-        Ray ray = new Ray(playerCamera.transform.position, playerCamera.transform.forward);
+        Ray ray = new(playerCamera.transform.position, playerCamera.transform.forward);
         if (Physics.Raycast(ray, out RaycastHit hit, pickupRange, pickupLayerMask))
         {
             NetworkObject itemNetObj = hit.collider.GetComponent<NetworkObject>();
@@ -107,7 +81,6 @@ public class PlayerItemHandler : NetworkBehaviour
 
         item.GiveOwnership(Owner);
 
-        // Make it kinematic so it follows itemHoldPoint
         if (item.TryGetComponent<Rigidbody>(out var rb))
         {
             rb.isKinematic = true;
@@ -116,9 +89,13 @@ public class PlayerItemHandler : NetworkBehaviour
 
         SetCollidersEnabled(item.gameObject, false);
         heldItem = item.gameObject;
-        heldItem.transform.SetParent(itemHoldPoint);
-        heldItem.transform.localPosition = Vector3.zero;
-        heldItem.transform.localRotation = Quaternion.identity;
+
+        // 🔄 FishNet parenting (NetworkObject → NetworkObject)
+        item.SetParent(this.NetworkObject);
+
+        // 🔧 Görsel hizalama
+        heldItem.transform.localPosition = itemHoldPoint.localPosition;
+        heldItem.transform.localRotation = itemHoldPoint.localRotation;
 
         SetHeldItemObserversRpc(item);
     }
@@ -126,6 +103,9 @@ public class PlayerItemHandler : NetworkBehaviour
     [TargetRpc]
     private void RejectPickupClientRpc(NetworkConnection conn)
     {
+        if (conn is null)
+            throw new ArgumentNullException(nameof(conn));
+
         Debug.Log("Bu eşyayı alamazsınız!");
     }
 
@@ -135,9 +115,13 @@ public class PlayerItemHandler : NetworkBehaviour
         if (item == null) return;
 
         heldItem = item.gameObject;
-        heldItem.transform.SetParent(itemHoldPoint);
-        heldItem.transform.localPosition = Vector3.zero;
-        heldItem.transform.localRotation = Quaternion.identity;
+
+        // 🔄 Multiplayer parenting
+        item.SetParent(this.NetworkObject);
+
+        // 🔧 Görsel hizalama
+        heldItem.transform.localPosition = itemHoldPoint.localPosition;
+        heldItem.transform.localRotation = itemHoldPoint.localRotation;
 
         if (heldItem.TryGetComponent<Rigidbody>(out var rb))
         {
@@ -152,21 +136,15 @@ public class PlayerItemHandler : NetworkBehaviour
     private void DropItemServerRpc()
     {
         if (heldItem == null) return;
+        if (!heldItem.TryGetComponent<NetworkObject>(out var netObj)) return;
 
-        var netObj = heldItem.GetComponent<NetworkObject>();
-        if (netObj == null) return;
+        netObj.SetParent((NetworkObject)null);
 
-        // 1. Detach from player
-        heldItem.transform.SetParent(null);
-
-        // 2. Move it slightly above ground
         Vector3 dropPos = CalculateDropPosition();
         heldItem.transform.position = dropPos;
 
-        // 3. Enable colliders before physics
         SetCollidersEnabled(heldItem, true);
 
-        // 4. Activate physics
         if (heldItem.TryGetComponent<Rigidbody>(out var rb))
         {
             rb.isKinematic = false;
@@ -174,13 +152,8 @@ public class PlayerItemHandler : NetworkBehaviour
             rb.linearVelocity = transform.forward * throwForce;
         }
 
-        // 5. Release network ownership
         netObj.RemoveOwnership();
-
-        // 6. Clear server reference after delay
         StartCoroutine(ClearHeldItemAfterDelay(itemDropDelay));
-
-        // 7. Notify clients to clear and restore
         ClearHeldItemObserversRpc();
     }
 
@@ -212,7 +185,10 @@ public class PlayerItemHandler : NetworkBehaviour
             }
 
             SetCollidersEnabled(heldItem, true);
-            heldItem.transform.SetParent(null);
+
+            if (heldItem.TryGetComponent<NetworkObject>(out var netObj))
+                netObj.SetParent((NetworkObject)null);
+
             heldItem = null;
         }
     }

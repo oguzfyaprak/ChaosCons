@@ -255,8 +255,16 @@ namespace Game.Player
         [ObserversRpc]
         private void SetHeldItemObserversRpc(NetworkObject item)
         {
+            if (item == null) return;
+
             heldItem = item;
-            heldItem.transform.SetParent(itemHoldPoint);
+
+            // ✅ Network parenting (FishNet tarafından senkronize edilir)
+            heldItem.SetParent(this.NetworkObject);
+
+            // ✅ Görsel olarak hizala
+            heldItem.transform.localPosition = itemHoldPoint.localPosition;
+            heldItem.transform.localRotation = itemHoldPoint.localRotation;
         }
 
         private void TryDropItem()
@@ -285,7 +293,11 @@ namespace Game.Player
         private void ClearHeldItemObserversRpc()
         {
             if (heldItem == null) return;
-            heldItem.transform.SetParent(null);
+
+            // ❗ Doğru parent kaldırımı
+            if (heldItem.TryGetComponent<NetworkObject>(out var netObj))
+                netObj.SetParent((NetworkObject)null);
+
             heldItem = null;
         }
 

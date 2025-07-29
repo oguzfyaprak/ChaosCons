@@ -6,14 +6,28 @@ using FishySteamworks;
 using Steamworks;
 using System.Text;
 using FishNet.Managing.Scened;
-using UnityEngine.UI; // Button bileþeni için
+using UnityEngine.UI;
+using System; // Button bileþeni için
 
 public class LobbyManager : MonoBehaviour
 {
+    private const string V = "Yükleniyor...";
+
     // --- MainMenuManager'dan gelen Referanslar ---
     // Bu alanlar SerializeField DEÐÝLDÝR, çünkü MainMenuManager tarafýndan runtime'da atanacaklar.
     private NetworkManager _networkManager;
     private FishySteamworks.FishySteamworks _steamworksTransport;
+
+    public LobbyManager(FishySteamworks.FishySteamworks steamworksTransport)
+    {
+        if (steamworksTransport == null)
+        {
+            throw new ArgumentNullException(nameof(steamworksTransport));
+        }
+
+        _steamworksTransport = steamworksTransport != null ? steamworksTransport : throw new System.ArgumentNullException(nameof(steamworksTransport));
+        SteamworksTransport = steamworksTransport;
+    }
 
     private TMP_Text _lobbyIdText;
     private TMP_Text _playerListText;
@@ -24,6 +38,9 @@ public class LobbyManager : MonoBehaviour
 
     // Lobi Bilgisi
     private CSteamID _currentLobbyID; // Anlýk olarak baðlý olunan lobi ID'si
+
+    public FishySteamworks.FishySteamworks SteamworksTransport { get; }
+
     // MainMenuManager.staticLobbyID statik lobi ID'sini tutuyor.
 
     // Initialize fonksiyonu MainMenuManager tarafýndan çaðrýlacak
@@ -44,20 +61,17 @@ public class LobbyManager : MonoBehaviour
         // UI buton olaylarýný burada dinlemeye baþla (önceki hata düzeltmeleri uygulandý)
         if (_startGameButton != null)
         {
-            var button = _startGameButton.GetComponent<Button>();
-            if (button != null) button.onClick.AddListener(OnClick_StartGame);
+            if (_startGameButton.TryGetComponent<Button>(out var button)) button.onClick.AddListener(OnClick_StartGame);
             else Debug.LogWarning("LobbyManager: StartGameButton üzerinde UnityEngine.UI.Button bileþeni bulunamadý.");
         }
         if (_leaveLobbyButton != null)
         {
-            var button = _leaveLobbyButton.GetComponent<Button>();
-            if (button != null) button.onClick.AddListener(OnClick_LeaveLobby);
+            if (_leaveLobbyButton.TryGetComponent<Button>(out var button)) button.onClick.AddListener(OnClick_LeaveLobby);
             else Debug.LogWarning("LobbyManager: LeaveLobbyButton üzerinde UnityEngine.UI.Button bileþeni bulunamadý.");
         }
         if (_readyButton != null)
         {
-            var button = _readyButton.GetComponent<Button>();
-            if (button != null) button.onClick.AddListener(OnClick_Ready);
+            if (_readyButton.TryGetComponent<Button>(out var button)) button.onClick.AddListener(OnClick_Ready);
             else Debug.LogWarning("LobbyManager: ReadyButton üzerinde UnityEngine.UI.Button bileþeni bulunamadý.");
         }
     }
@@ -199,13 +213,13 @@ public class LobbyManager : MonoBehaviour
             return;
         }
 
-        StringBuilder sb = new StringBuilder("Oyuncular:\n");
+        StringBuilder sb = new("Oyuncular:\n");
         int numMembers = SteamMatchmaking.GetNumLobbyMembers(_currentLobbyID);
 
         for (int i = 0; i < numMembers; i++)
         {
             CSteamID memberSteamID = SteamMatchmaking.GetLobbyMemberByIndex(_currentLobbyID, i);
-            string personaName = "Yükleniyor..."; // Default to "Loading..."
+            string personaName = V; // Default to "Loading..."
 
             if (!memberSteamID.IsValid())
             {
