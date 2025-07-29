@@ -292,17 +292,17 @@ public class MainMenuManager : MonoBehaviour
 
             Debug.Log($"✅ Steam lobisi başarıyla oluşturuldu! ID: {_currentLobbyID}");
 
-            // Server bağlantısı (host için)
+            // Server başlat
             if (!networkManager.IsServerStarted)
             {
                 Debug.Log("🟢 Server başlatılıyor (Host)...");
-                _steamworksTransportInstance.StartConnection(true); // true = server
+                _steamworksTransportInstance.StartConnection(true);
             }
 
-            // Lobi UI göster
-            ShowPanel(lobbyPanel);
+            // 🔥 Steam lobby'ye "ServerReady" bilgisini yaz
+            SteamMatchmaking.SetLobbyData(_currentLobbyID, "ServerReady", "true");
 
-            // LobbyManager'a bilgi gönder
+            ShowPanel(lobbyPanel);
             _lobbyManagerInstance.InitializeLobbyUI(_currentLobbyID);
 
             Debug.Log("🎮 Host olarak oyun bağlantısı başarıyla kuruldu.");
@@ -310,10 +310,11 @@ public class MainMenuManager : MonoBehaviour
         else
         {
             Debug.LogError($"❌ Steam Lobisi oluşturulamadı: {result.m_eResult}");
-            HandleConnectionFailure(); // Bağlantı hatası durumunda temizlik yap
+            HandleConnectionFailure();
             ShowPanel(mainMenuPanel);
         }
     }
+
 
     private void OnGameLobbyJoinRequested(GameLobbyJoinRequested_t result)
     {
@@ -326,37 +327,23 @@ public class MainMenuManager : MonoBehaviour
         if ((EChatRoomEnterResponse)result.m_EChatRoomEnterResponse == EChatRoomEnterResponse.k_EChatRoomEnterResponseSuccess)
         {
             _currentLobbyID = new CSteamID(result.m_ulSteamIDLobby);
-            staticLobbyID = _currentLobbyID; // Statik ID'yi güncelle
+            staticLobbyID = _currentLobbyID;
 
             Debug.Log($"MainMenuManager: Steam Lobisine başarıyla katıldı! Lobi ID: {_currentLobbyID}");
 
-            if (_steamworksTransportInstance != null && !networkManager.IsClientStarted)
-            {
-                Debug.Log("MainMenuManager: FishNet istemcisi başlatılıyor...");
-                _steamworksTransportInstance.StartConnection(false); // false = client
-            }
-            else if (_steamworksTransportInstance == null)
-            {
-                Debug.LogError("MainMenuManager: FishySteamworks Transport referansı boş! İstemci başlatılamadı.");
-                HandleConnectionFailure();
-                return;
-            }
-            else
-            {
-                Debug.Log("MainMenuManager: İstemci zaten başlatılmış durumda. Tekrar başlatmaya gerek yok.");
-            }
-
-            // Lobi UI'ını göster ve başlat
             ShowPanel(lobbyPanel);
             _lobbyManagerInstance.InitializeLobbyUI(_currentLobbyID);
-            SteamMatchmaking.SetLobbyMemberData(_currentLobbyID, "ReadyStatus", "false"); // Hazır durumunu false yap
-            _lobbyManagerInstance.UpdateReadyButtonState(); // Hazır butonu durumunu güncelle
+            SteamMatchmaking.SetLobbyMemberData(_currentLobbyID, "ReadyStatus", "false");
+            _lobbyManagerInstance.UpdateReadyButtonState();
+
+            // ❌ Artık burada StartConnection çağırmıyoruz!
+            // 🔁 LobbyDataUpdate üzerinden takip edeceğiz
         }
         else
         {
             Debug.LogError($"MainMenuManager: Steam Lobisine katılamadı: {(EChatRoomEnterResponse)result.m_EChatRoomEnterResponse}");
-            HandleConnectionFailure(); // Bağlantı hatası durumunda temizlik yap
-            ShowPanel(mainMenuPanel); // Hata durumunda ana menüye dön
+            HandleConnectionFailure();
+            ShowPanel(mainMenuPanel);
         }
     }
 
@@ -372,18 +359,29 @@ public class MainMenuManager : MonoBehaviour
 
     private void OnLobbyDataUpdate(LobbyDataUpdate_t pCallback)
     {
-        // Sadece geçerli lobinin güncellemesiyle ilgileniyoruz.
         if (_currentLobbyID.IsValid() && pCallback.m_ulSteamIDLobby == _currentLobbyID.m_SteamID)
         {
             Debug.Log($"MainMenuManager: Lobi Veri Güncellemesi: {pCallback.m_ulSteamIDLobby}");
-            _lobbyManagerInstance.UpdatePlayerList(); // Oyuncu listesini yeniden çiz
-            _lobbyManagerInstance.UpdateReadyButtonState(); // Hazır butonu durumunu da güncelle
 
-            // Eğer lobi host'u oyunu başlattıysa (ve biz host değilsek)
+            _lobbyManagerInstance.UpdatePlayerList();
+            _lobbyManagerInstance.UpdateReadyButtonState();
+
+            string serverReady = SteamMatchmaking.GetLobbyData(_currentLobbyID, "ServerReady");
+
+            // 🔑 ServerReady geldiğinde istemci bağlan
+            if (!networkManager.IsServerStarted &&
+                !networkManager.IsClientStarted &&
+                serverReady == "true")
+            {
+                Debug.Log("🎯 Server artık hazır. İstemci bağlanıyor...");
+                _steamworksTransportInstance.StartConnection(false); // false = client
+            }
+
+            // Host değilsek ve oyun başlatıldıysa
             if (!networkManager.IsServerStarted && SteamMatchmaking.GetLobbyData(_currentLobbyID, "GameStarted") == "true")
             {
                 Debug.Log("MainMenuManager: Lobi host'u oyunu başlattı. Ana oyun sahnesine geçiliyor.");
-                LoadMainGameScene(); // Ana oyun sahnesini yükle
+                LoadMainGameScene();
             }
         }
     }
