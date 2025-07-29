@@ -1,34 +1,25 @@
-using UnityEngine;
-using TMPro;
 using FishNet.Managing;
-using FishNet.Transporting;
-using FishySteamworks;
 using Steamworks;
 using System.Text;
+using TMPro;
+using UnityEngine;
+using FishNet.Transporting;
+using FishySteamworks;
 using FishNet.Managing.Scened;
 using UnityEngine.UI;
-using System; // Button bileþeni için
+using System;
+using System.Collections;
 
 public class LobbyManager : MonoBehaviour
 {
+    // Konstante tanýmlarý
     private const string V = "Yükleniyor...";
 
     // --- MainMenuManager'dan gelen Referanslar ---
-    // Bu alanlar SerializeField DEÐÝLDÝR, çünkü MainMenuManager tarafýndan runtime'da atanacaklar.
     private NetworkManager _networkManager;
     private FishySteamworks.FishySteamworks _steamworksTransport;
 
-    public LobbyManager(FishySteamworks.FishySteamworks steamworksTransport)
-    {
-        if (steamworksTransport == null)
-        {
-            throw new ArgumentNullException(nameof(steamworksTransport));
-        }
-
-        _steamworksTransport = steamworksTransport != null ? steamworksTransport : throw new System.ArgumentNullException(nameof(steamworksTransport));
-        SteamworksTransport = steamworksTransport;
-    }
-
+    // UI Referanslarý
     private TMP_Text _lobbyIdText;
     private TMP_Text _playerListText;
     private GameObject _startGameButton;
@@ -38,10 +29,6 @@ public class LobbyManager : MonoBehaviour
 
     // Lobi Bilgisi
     private CSteamID _currentLobbyID; // Anlýk olarak baðlý olunan lobi ID'si
-
-    public FishySteamworks.FishySteamworks SteamworksTransport { get; }
-
-    // MainMenuManager.staticLobbyID statik lobi ID'sini tutuyor.
 
     // Initialize fonksiyonu MainMenuManager tarafýndan çaðrýlacak
     public void Initialize(NetworkManager nm, FishySteamworks.FishySteamworks fst,
@@ -64,16 +51,21 @@ public class LobbyManager : MonoBehaviour
             if (_startGameButton.TryGetComponent<Button>(out var button)) button.onClick.AddListener(OnClick_StartGame);
             else Debug.LogWarning("LobbyManager: StartGameButton üzerinde UnityEngine.UI.Button bileþeni bulunamadý.");
         }
+        else Debug.LogWarning("LobbyManager: _startGameButton referansý atanmamýþ!");
+
         if (_leaveLobbyButton != null)
         {
             if (_leaveLobbyButton.TryGetComponent<Button>(out var button)) button.onClick.AddListener(OnClick_LeaveLobby);
             else Debug.LogWarning("LobbyManager: LeaveLobbyButton üzerinde UnityEngine.UI.Button bileþeni bulunamadý.");
         }
+        else Debug.LogWarning("LobbyManager: _leaveLobbyButton referansý atanmamýþ!");
+
         if (_readyButton != null)
         {
             if (_readyButton.TryGetComponent<Button>(out var button)) button.onClick.AddListener(OnClick_Ready);
             else Debug.LogWarning("LobbyManager: ReadyButton üzerinde UnityEngine.UI.Button bileþeni bulunamadý.");
         }
+        else Debug.LogWarning("LobbyManager: _readyButton referansý atanmamýþ!");
     }
 
     // Lobi UI'ýný baþlatma (MainMenuManager tarafýndan lobiye girildiðinde çaðrýlýr)
@@ -86,6 +78,16 @@ public class LobbyManager : MonoBehaviour
             GUIUtility.systemCopyBuffer = _currentLobbyID.m_SteamID.ToString(); // Lobi ID'yi panoya kopyala
             Debug.Log($"Lobi ID panoya kopyalandý: {_currentLobbyID.m_SteamID}");
         }
+
+        // Lobiye girer girmez tüm üyelerin bilgilerini talep et.
+        int numMembers = SteamMatchmaking.GetNumLobbyMembers(_currentLobbyID);
+        for (int i = 0; i < numMembers; i++)
+        {
+            CSteamID memberSteamID = SteamMatchmaking.GetLobbyMemberByIndex(_currentLobbyID, i);
+            // Oyuncunun bilgilerini önceden talep et. Bu, GetFriendPersonaName'in daha doðru çalýþmasýna yardýmcý olur.
+            SteamFriends.RequestUserInformation(memberSteamID, false);
+        }
+
         UpdatePlayerList(); // Baþlangýçta oyuncu listesini güncelle
 
         // Buton görünürlüklerini ayarla: Host ise Oyunu Baþlat, Client ise Hazýr Ol
@@ -111,7 +113,7 @@ public class LobbyManager : MonoBehaviour
         // Sadece lobi host'u ve sunucu aktifse oyunu baþlatabilir
         if (!_networkManager.IsServerStarted || lobbyOwner != localSteamId)
         {
-            Debug.LogWarning("Sadece lobi host'u oyunu baþlatabilir!");
+            Debug.LogWarning("Sadece lobi host'u oyunu baþlatabilir ve sunucu aktif olmalýdýr!");
             return;
         }
 
@@ -146,23 +148,14 @@ public class LobbyManager : MonoBehaviour
 
         if (_currentLobbyID.IsValid())
         {
-            SteamMatchmaking.LeaveLobby(_currentLobbyID);
-            Debug.Log($"Lobiden ayrýlýndý: {_currentLobbyID}");
+            SteamMatchmaking.LeaveLobby(_currentLobbyID); // Steam lobisinden ayrýlma isteði gönder
+            Debug.Log($"Steam lobiden ayrýlma isteði gönderildi: {_currentLobbyID}");
             MainMenuManager.staticLobbyID = CSteamID.Nil; // Statik lobi ID'sini sýfýrla
         }
-
-        // Network baðlantýlarýný durdur (Host veya Client olmasýna göre)
-        if (_networkManager.IsServerStarted)
+        else
         {
-            _networkManager.ServerManager.StopConnection(true);
+            Debug.LogWarning("LobbyManager: Geçerli bir lobiye baðlý deðildiniz.");
         }
-        else if (_networkManager.IsClientStarted)
-        {
-            _networkManager.ClientManager.StopConnection();
-        }
-
-        // Lobiden ayrýlýnca ana menüye dönüþü MainMenuManager yönetecek.
-        // Bu metot MainMenuManager'dan çaðrýldýðýnda zaten MainMenuManager paneli deðiþtirecek.
     }
 
     public void OnClick_Ready()
@@ -176,15 +169,20 @@ public class LobbyManager : MonoBehaviour
         SteamMatchmaking.SetLobbyMemberData(_currentLobbyID, "ReadyStatus", newReadyStatus);
 
         Debug.Log($"Hazýr durumu güncellendi: {newReadyStatus}");
-        // Not: Lobi verisi güncellendiðinde Steam'in OnLobbyDataUpdate callback'i tetiklenir.
-        // MainMenuManager bu callback'i dinleyip UpdatePlayerList ve UpdateReadyButtonState'i çaðýracaktýr.
-        // Bu yüzden burada tekrar çaðýrmaya gerek yoktur, çifte çaðrýyý engeller.
     }
 
     // Hazýr butonu metnini ve durumunu günceller
     public void UpdateReadyButtonState()
     {
         if (_readyButton == null) return;
+
+        if (!_currentLobbyID.IsValid())
+        {
+            TMP_Text buttonTextInvalid = _readyButton.GetComponentInChildren<TMP_Text>();
+            if (buttonTextInvalid != null) buttonTextInvalid.text = "Geçersiz Lobi";
+            _readyButton.SetActive(false); // Geçersiz lobi ise butonu kapat
+            return;
+        }
 
         string currentReadyStatus = SteamMatchmaking.GetLobbyMemberData(_currentLobbyID, SteamUser.GetSteamID(), "ReadyStatus");
         bool isCurrentlyReady = (currentReadyStatus == "true");
@@ -198,6 +196,8 @@ public class LobbyManager : MonoBehaviour
 
     // --- Yardýmcý Fonksiyonlar ---
     // Oyuncu listesini günceller ve UI'a yansýtýr.
+    private Coroutine _refreshCoroutine;
+
     public void UpdatePlayerList()
     {
         if (_playerListText == null)
@@ -208,18 +208,25 @@ public class LobbyManager : MonoBehaviour
 
         if (!_currentLobbyID.IsValid())
         {
-            // Handle cases where lobby ID might not be valid yet, perhaps if called too early
             _playerListText.text = "Lobiye baðlý deðil.";
+            return;
+        }
+
+        if (!SteamManager.Initialized)
+        {
+            _playerListText.text = "Steam baþlatýlamadý.";
+            Debug.LogWarning("SteamManager baþlatýlmamýþ. Oyuncu listesi çekilemez.");
             return;
         }
 
         StringBuilder sb = new("Oyuncular:\n");
         int numMembers = SteamMatchmaking.GetNumLobbyMembers(_currentLobbyID);
+        bool hasUnknownNames = false;
 
         for (int i = 0; i < numMembers; i++)
         {
             CSteamID memberSteamID = SteamMatchmaking.GetLobbyMemberByIndex(_currentLobbyID, i);
-            string personaName = V; // Default to "Loading..."
+            string personaName;
 
             if (!memberSteamID.IsValid())
             {
@@ -228,31 +235,33 @@ public class LobbyManager : MonoBehaviour
             }
             else
             {
-                // For the local player, always get the persona name directly.
-                if (memberSteamID == SteamUser.GetSteamID())
-                {
-                    personaName = SteamFriends.GetPersonaName();
-                }
-                else
-                {
-                    // Try to get the friend's persona name.
-                    // SteamFriends.GetFriendPersonaName might return an empty string or "[unknown]"
-                    // if the information isn't yet available after RequestUserInformation.
-                    string fetchedName = SteamFriends.GetFriendPersonaName(memberSteamID);
+                SteamFriends.RequestUserInformation(memberSteamID, true);
 
-                    // If the name is still empty or unknown, request it again and keep "Yükleniyor..."
-                    if (string.IsNullOrEmpty(fetchedName) || fetchedName == "[unknown]")
+                try
+                {
+                    if (memberSteamID == SteamUser.GetSteamID())
                     {
-                        // Requesting information again ensures it's in the queue if not already.
-                        // This is crucial for when PersonaStateChange might not catch all updates immediately.
-                        SteamFriends.RequestUserInformation(memberSteamID, true);
-                        Debug.Log($"[LobbyManager] Steam adý boþ veya bilinmeyen, bilgi isteniyor. ID: {memberSteamID}");
-                        personaName = "Yükleniyor...";
+                        personaName = SteamFriends.GetPersonaName(); // kendi adýn için daha güvenli
                     }
                     else
                     {
-                        personaName = fetchedName;
+                        string fetchedName = SteamFriends.GetFriendPersonaName(memberSteamID);
+                        if (string.IsNullOrEmpty(fetchedName) || fetchedName == "[unknown]")
+                        {
+                            personaName = V;
+                            hasUnknownNames = true;
+                        }
+                        else
+                        {
+                            personaName = fetchedName;
+                        }
                     }
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogWarning($"[LobbyManager] Steam ID {memberSteamID} için PersonaName alýnamadý: {ex.Message}");
+                    personaName = V;
+                    hasUnknownNames = true;
                 }
             }
 
@@ -260,7 +269,6 @@ public class LobbyManager : MonoBehaviour
             string readyStatus = SteamMatchmaking.GetLobbyMemberData(_currentLobbyID, memberSteamID, "ReadyStatus");
 
             string readyIndicator = "";
-            // Host's ready status is not relevant for game start logic, only clients need to be ready.
             if (hostIndicator != " (Host)")
             {
                 readyIndicator = (readyStatus == "true") ? " (Hazýr)" : " (Hazýr Deðil)";
@@ -270,9 +278,19 @@ public class LobbyManager : MonoBehaviour
         }
 
         _playerListText.text = sb.ToString();
-        UpdateReadyButtonState(); // Ensure ready button state is updated after player list refresh
+
+        if (hasUnknownNames)
+        {
+            if (_refreshCoroutine != null) StopCoroutine(_refreshCoroutine);
+            _refreshCoroutine = StartCoroutine(RefreshPlayerListWithDelay());
+        }
     }
 
+    private IEnumerator RefreshPlayerListWithDelay()
+    {
+        yield return new WaitForSeconds(1.5f);
+        UpdatePlayerList();
+    }
 
     // Tüm oyuncularýn hazýr olup olmadýðýný kontrol eder.
     private bool AreAllPlayersReady()
@@ -285,7 +303,7 @@ public class LobbyManager : MonoBehaviour
 
         for (int i = 0; i < numMembers; i++)
         {
-            CSteamID memberSteamID = SteamMatchmaking.GetLobbyMemberByIndex(_currentLobbyID, i); // Hata düzeltildi: _currentLobyID -> _currentLobbyID
+            CSteamID memberSteamID = SteamMatchmaking.GetLobbyMemberByIndex(_currentLobbyID, i);
 
             // Host oyuncunun hazýr olmasýna gerek yoktur, oyunu baþlatan odur.
             if (memberSteamID == SteamMatchmaking.GetLobbyOwner(_currentLobbyID))
