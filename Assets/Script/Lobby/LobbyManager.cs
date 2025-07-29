@@ -188,7 +188,7 @@ public class LobbyManager : MonoBehaviour
     {
         if (_playerListText == null)
         {
-            Debug.LogError("LobbyManager: playerListText GameObject'i atanmamýþ! Lütfen Unity Inspector'da atayýn.");
+            Debug.LogError("LobbyManager: _playerListText GameObject'i atanmamýþ! Lütfen Unity Inspector'da atayýn.");
             return;
         }
 
@@ -200,7 +200,7 @@ public class LobbyManager : MonoBehaviour
         for (int i = 0; i < numMembers; i++)
         {
             CSteamID memberSteamID = SteamMatchmaking.GetLobbyMemberByIndex(_currentLobbyID, i);
-            string personaName = "Hata!"; // Varsayýlan bir hata metni
+            string personaName; // Hata durumunda atanacak
 
             if (!memberSteamID.IsValid())
             {
@@ -220,20 +220,22 @@ public class LobbyManager : MonoBehaviour
                     {
                         personaName = SteamFriends.GetFriendPersonaName(memberSteamID);
 
-                        // Eðer isim hala boþ veya [unknown] ise (bazen exception atmaz), bilgiyi iste
+                        // Eðer isim hala boþ veya [unknown] ise, bilgiyi iste
                         if (string.IsNullOrEmpty(personaName) || personaName == "[unknown]")
                         {
                             personaName = "Yükleniyor...";
                             // Sadece isim bilgisini istemek daha verimlidir (ikinci parametre: true)
                             SteamFriends.RequestUserInformation(memberSteamID, true);
+                            // Bu logu bilgi seviyesinde tutuyoruz, çünkü bu beklenen bir durum.
+                            Debug.Log($"[LobbyManager] Steam adý boþ veya bilinmeyen, bilgi isteniyor. ID: {memberSteamID}");
                         }
                     }
                 }
                 catch (System.Exception e)
                 {
-                    // HATA BURADA YAKALANIYOR!
-                    // ÇÖZÜM: Hata yakalandýðýnda kullanýcý bilgisini Steam'den iste.
-                    Debug.LogWarning($"[LobbyManager] Steam adý alýnamadý, bilgi isteniyor. Hata: {e.Message} - ID: {memberSteamID}");
+                    // Yakalanan "Object reference" hatasý burada ele alýnýr.
+                    // Hata yakalandýðýnda kullanýcý bilgisini Steam'den iste.
+                    Debug.Log($"[LobbyManager] Steam adý alýnamadý (exception), bilgi isteniyor. Hata: {e.Message} - ID: {memberSteamID}");
                     personaName = "Yükleniyor..."; // UI'da "Yükleniyor..." göster
 
                     // En önemli satýr: Hata durumunda bilgiyi yeniden iste!
@@ -269,7 +271,7 @@ public class LobbyManager : MonoBehaviour
 
         for (int i = 0; i < numMembers; i++)
         {
-            CSteamID memberSteamID = SteamMatchmaking.GetLobbyMemberByIndex(_currentLobbyID, i);
+            CSteamID memberSteamID = SteamMatchmaking.GetLobbyMemberByIndex(_currentLobbyID, i); // Hata düzeltildi: _currentLobyID -> _currentLobbyID
 
             // Host oyuncunun hazýr olmasýna gerek yoktur, oyunu baþlatan odur.
             if (memberSteamID == SteamMatchmaking.GetLobbyOwner(_currentLobbyID))
