@@ -206,20 +206,21 @@ public class LobbyManager : MonoBehaviour
         if (_playerListText == null)
         {
             Debug.LogError("LobbyManager: _playerListText GameObject'i atanmamýþ! Lütfen Unity Inspector'da atayýn.");
-            return;
+            return; // Eðer UI elementý atanmamýþsa daha fazla devam etme
         }
 
         if (!_currentLobbyID.IsValid())
         {
             _playerListText.text = "Lobiye baðlý deðil.";
-            return;
+            return; // Geçerli bir lobi ID'si yoksa devam etme
         }
 
+        // Bu KONTROL ÇOK ÖNEMLÝ: Steam API'si hazýr deðilse hemen çýk
         if (!SteamManager.Initialized)
         {
-            _playerListText.text = "Steam baþlatýlamadý.";
-            Debug.LogWarning("SteamManager baþlatýlmamýþ. Oyuncu listesi çekilemez.");
-            return;
+            _playerListText.text = "Steam baþlatýlamadý veya hazýr deðil.";
+            Debug.LogWarning("SteamManager baþlatýlmamýþ veya henüz hazýr deðil. Oyuncu listesi çekilemiyor.");
+            return; // Steam hazýr deðilse hemen çýk
         }
 
         StringBuilder sb = new("Oyuncular:\n");
