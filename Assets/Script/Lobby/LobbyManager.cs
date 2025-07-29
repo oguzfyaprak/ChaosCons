@@ -144,17 +144,20 @@ public class LobbyManager : MonoBehaviour
 
     public void OnClick_LeaveLobby()
     {
-        Debug.Log("Lobiden ayrýlýyor...");
-
         if (_currentLobbyID.IsValid())
         {
-            SteamMatchmaking.LeaveLobby(_currentLobbyID); // Steam lobisinden ayrýlma isteði gönder
-            Debug.Log($"Steam lobiden ayrýlma isteði gönderildi: {_currentLobbyID}");
-            MainMenuManager.staticLobbyID = CSteamID.Nil; // Statik lobi ID'sini sýfýrla
+            SteamMatchmaking.LeaveLobby(_currentLobbyID);
+            MainMenuManager.staticLobbyID = CSteamID.Nil;
+        }
+
+        MainMenuManager mainMenu = FindFirstObjectByType<MainMenuManager>();
+        if (mainMenu != null)
+        {
+            mainMenu.ReturnToMainMenuFromLobby();
         }
         else
         {
-            Debug.LogWarning("LobbyManager: Geçerli bir lobiye baðlý deðildiniz.");
+            Debug.LogError("MainMenuManager bulunamadý. Ana menüye dönemedi.");
         }
     }
 

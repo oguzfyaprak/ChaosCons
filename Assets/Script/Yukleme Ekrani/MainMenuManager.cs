@@ -506,9 +506,16 @@ public class MainMenuManager : MonoBehaviour
             ShowPanel(mainMenuPanel);  // Ana menüye dön
         }
     }
+    public void ReturnToMainMenuFromLobby()
+    {
+        Debug.Log("Ana menüye dönülüyor (LobbyManager çağırdı).");
+
+        HandleConnectionFailure(); // Sunucu/client bağlantılarını kes
+        ShowPanel(mainMenuPanel); // Ana menü panelini göster
+    }
 
 
-void OnDestroy()
+    void OnDestroy()
     {
         // Script yok edildiğinde olay aboneliklerini kaldır
         if (networkManager != null)
