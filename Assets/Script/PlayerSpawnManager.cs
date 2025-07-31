@@ -8,8 +8,7 @@ using FishNet.Transporting;
 public class PlayerSpawnManager : MonoBehaviour
 {
     [SerializeField] private GameObject playerPrefab;
-    private static readonly List<Transform> transforms = new();
-    private readonly List<Transform> spawnPoints = transforms;
+    private List<Transform> spawnPoints = new List<Transform>();
     private NetworkManager networkManager;
 
     // Sahnenin sunucu tarafında yüklenip yüklenmediğini ve spawn'a hazır olup olmadığını takip eder.

@@ -7,17 +7,13 @@ using FishySteamworks;
 using Steamworks;
 using FishNet.Managing.Scened;
 using UnityEngine.UI;
-using FishNet.Connection;
-using System;
+using FishNet.Connection; // NetworkConnection için bu using'i ekleyin
 
 public class MainMenuManager : MonoBehaviour
 {
     // --- Referanslar ---
     public NetworkManager networkManager;
-    private FishySteamworks.FishySteamworks _steamworksTransportInstance;
-
-    // Sadece oyuncunun kendi Steam adı için UI Text
-    [SerializeField] private TMP_Text _playerNameText;
+    private FishySteamworks.FishySteamworks steamworksTransportInstance;
 
     // UI Panelleri
     [SerializeField] private GameObject mainMenuPanel;
@@ -54,7 +50,7 @@ public class MainMenuManager : MonoBehaviour
 
     // Lobi Bilgisi (Bu sınıfın yönettiği lobi ID'si)
     private CSteamID _currentLobbyID;
-    public static CSteamID staticLobbyID; // Statik Lobi ID'sini tutar.
+    public static CSteamID staticLobbyID;
 
     private LobbyManager _lobbyManagerInstance; // Lobi mantığını yönetecek LobbyManager referansı
 
@@ -73,8 +69,8 @@ public class MainMenuManager : MonoBehaviour
             }
         }
 
-        _steamworksTransportInstance = networkManager.TransportManager.GetTransport<FishySteamworks.FishySteamworks>();
-        if (_steamworksTransportInstance == null)
+        steamworksTransportInstance = networkManager.TransportManager.GetTransport<FishySteamworks.FishySteamworks>();
+        if (steamworksTransportInstance == null)
         {
             Debug.LogError("MainMenuManager: FishySteamworks Transport bulunamadı! NetworkManager ile aynı GameObject üzerinde FishySteamworks bileşeni olduğundan emin olun.");
             return;
@@ -83,34 +79,9 @@ public class MainMenuManager : MonoBehaviour
         // Panelleri başlangıç durumuna ayarla (Sadece Ana Menü açık olacak)
         ShowPanel(mainMenuPanel);
 
-        // Steamworks.NET'i ana menüde hemen başlat.
-        InitializeSteamworks();
-
-        // FishNet bağlantı durumu olaylarını dinle
-        networkManager.ClientManager.OnClientConnectionState += OnClientConnectionStateChanged;
-        networkManager.ServerManager.OnRemoteConnectionState += OnServerRemoteConnectionStateChanged;
-        networkManager.ServerManager.OnServerConnectionState += OnServerConnectionStateChanged;
-
-        // LobbyManager instance'ını al (bu script ile aynı GameObject üzerinde olmalı)
-        if (!TryGetComponent<LobbyManager>(out _lobbyManagerInstance))
-        {
-            Debug.LogError("MainMenuManager: LobbyManager bulunamadı! Lütfen bu GameObject'e bir LobbyManager bileşeni ekleyin.");
-        }
-        else
-        {
-            // LobbyManager'a gerekli UI elemanlarını ve referansları pasla
-            _lobbyManagerInstance.Initialize(networkManager, _steamworksTransportInstance,
-                                             lobbyIdText, playerListText, startGameButton,
-                                             leaveLobbyButton, readyButton, mainGameSceneName);
-        }
-    }
-
-    // Steamworks'ü başlatır ve callback'leri kaydeder.
-    private void InitializeSteamworks()
-    {
+        // Steamworks.NET başlatıldıysa callback'leri oluştur ve kaydol
         if (SteamManager.Initialized)
         {
-            // Callback'leri oluştur ve kaydol
             LobbyCreated = Callback<LobbyCreated_t>.Create(OnLobbyCreated);
             GameLobbyJoinRequested = Callback<GameLobbyJoinRequested_t>.Create(OnGameLobbyJoinRequested);
             LobbyEntered = Callback<LobbyEnter_t>.Create(OnLobbyEntered);
@@ -120,25 +91,34 @@ public class MainMenuManager : MonoBehaviour
             PersonaStateChange = Callback<PersonaStateChange_t>.Create(OnPersonaStateChange);
 
             Debug.Log($"MainMenuManager: Steamworks.NET ve FishySteamworks için callback'ler kuruldu. Oyuncu Adı: {SteamFriends.GetPersonaName()}, SteamID: {SteamUser.GetSteamID().m_SteamID}");
-
-            // Kendi oyuncu adını ana menüde göster
-            UpdateLocalPlayerInfoUI();
         }
         else
         {
             Debug.LogError("MainMenuManager: SteamAPI başlatılamadı! Steam açık mı ve steam_appid.txt doğru mu?");
         }
-    }
 
-    // Yerel oyuncunun adını günceller.
-    private void UpdateLocalPlayerInfoUI()
-    {
-        if (!SteamManager.Initialized) return;
+        // FishNet bağlantı durumu olaylarını dinle (BURASI GÜNCELLENDİ)
+        // ClientManager'daki olay adı genellikle OnClientConnectionState veya OnConnectionState olur.
+        // Eğer OnClientConnectionState hala hata veriyorsa, sadece OnConnectionState deneyin.
+        networkManager.ClientManager.OnClientConnectionState += OnClientConnectionStateChanged;
+        // ServerManager'daki OnRemoteConnectionState olayı genellikle NetworkConnection ve RemoteConnectionStateArgs bekler.
+        networkManager.ServerManager.OnRemoteConnectionState += OnServerRemoteConnectionStateChanged;
+        // Sunucunun kendi bağlantı durumu için
+        networkManager.ServerManager.OnServerConnectionState += OnServerConnectionStateChanged;
 
-        if (_playerNameText != null)
+
+        // LobbyManager instance'ını al (bu script ile aynı GameObject üzerinde olmalı)
+        _lobbyManagerInstance = GetComponent<LobbyManager>();
+        if (_lobbyManagerInstance == null)
         {
-            _playerNameText.text = SteamFriends.GetPersonaName();
-            Debug.Log($"Ana Menüde Oyuncu Adı: {_playerNameText.text}");
+            Debug.LogError("MainMenuManager: LobbyManager bulunamadı! Lütfen bu GameObject'e bir LobbyManager bileşeni ekleyin.");
+        }
+        else
+        {
+            // LobbyManager'a gerekli UI elemanlarını ve referansları pasla
+            _lobbyManagerInstance.Initialize(networkManager, steamworksTransportInstance,
+                                             lobbyIdText, playerListText, startGameButton,
+                                             leaveLobbyButton, readyButton, mainGameSceneName);
         }
     }
 
@@ -205,15 +185,13 @@ public class MainMenuManager : MonoBehaviour
     public void OnClick_CreateLobby()
     {
         Debug.Log("MainMenuManager: Lobi oluşturuluyor...");
-        if (_steamworksTransportInstance != null && SteamManager.Initialized)
+        if (steamworksTransportInstance != null)
         {
             SteamMatchmaking.CreateLobby(ELobbyType.k_ELobbyTypeFriendsOnly, 4);
         }
         else
         {
-            Debug.LogError("MainMenuManager: FishySteamworks Transport referansı boş veya Steam Manager başlatılmamış! Lobi oluşturulamadı.");
-            HandleConnectionFailure(); // Hata durumunda temizlik yap
-            ShowPanel(mainMenuPanel); // Ana menüye dön
+            Debug.LogError("MainMenuManager: FishySteamworks Transport referansı boş! Lobi oluşturulamadı.");
         }
     }
 
@@ -236,18 +214,9 @@ public class MainMenuManager : MonoBehaviour
 
         if (ulong.TryParse(lobbyIdString, out ulong lobbyIDasULong))
         {
-            CSteamID lobbySteamID = new(lobbyIDasULong);
+            CSteamID lobbySteamID = new CSteamID(lobbyIDasULong);
             Debug.Log($"MainMenuManager: Lobiye {lobbySteamID} ID ile katılınıyor...");
-            if (SteamManager.Initialized)
-            {
-                SteamMatchmaking.JoinLobby(lobbySteamID);
-            }
-            else
-            {
-                Debug.LogError("MainMenuManager: Steam Manager başlatılmamış! Lobiye katılamadı.");
-                HandleConnectionFailure();
-                ShowPanel(mainMenuPanel);
-            }
+            SteamMatchmaking.JoinLobby(lobbySteamID);
         }
         else
         {
@@ -278,7 +247,12 @@ public class MainMenuManager : MonoBehaviour
     public void OnClick_LeaveCurrentLobby()
     {
         Debug.Log("MainMenuManager: Lobiden ayrılma isteği gönderildi.");
+        // LobbyManager'ın lobiden ayrılma işlevini çağır
         _lobbyManagerInstance.OnClick_LeaveLobby();
+
+        // Lobiden ayrılınca Ana Menü paneline dön
+        ShowPanel(mainMenuPanel);
+        Debug.Log("MainMenuManager: Lobiden ayrılış sonrası ana menü gösterildi.");
     }
 
     // --- Steamworks.NET Callback Fonksiyonları ---
@@ -292,18 +266,26 @@ public class MainMenuManager : MonoBehaviour
 
             Debug.Log($"✅ Steam lobisi başarıyla oluşturuldu! ID: {_currentLobbyID}");
 
-            // Server başlat
+            // Server bağlantısı (host için)
             if (!networkManager.IsServerStarted)
             {
                 Debug.Log("🟢 Server başlatılıyor (Host)...");
-                _steamworksTransportInstance.StartConnection(true);
+                steamworksTransportInstance.StartConnection(true);
             }
 
-            // 🔥 Steam lobby'ye "ServerReady" bilgisini yaz
-            SteamMatchmaking.SetLobbyData(_currentLobbyID, "ServerReady", "true");
+            // Client bağlantısı (host kendi client'ı için)
+            if (!networkManager.IsClientStarted)
+            {
+                Debug.Log("🟢 Client başlatılıyor (Host)...");
+                steamworksTransportInstance.StartConnection(false);
+            }
 
+            // Lobi UI göster
             ShowPanel(lobbyPanel);
+
+            // LobbyManager'a bilgi gönder
             _lobbyManagerInstance.InitializeLobbyUI(_currentLobbyID);
+            _lobbyManagerInstance.UpdatePlayerList();
 
             Debug.Log("🎮 Host olarak oyun bağlantısı başarıyla kuruldu.");
         }
@@ -327,30 +309,52 @@ public class MainMenuManager : MonoBehaviour
         if ((EChatRoomEnterResponse)result.m_EChatRoomEnterResponse == EChatRoomEnterResponse.k_EChatRoomEnterResponseSuccess)
         {
             _currentLobbyID = new CSteamID(result.m_ulSteamIDLobby);
-            staticLobbyID = _currentLobbyID;
+            staticLobbyID = _currentLobbyID; // Statik ID'yi güncelle
 
             Debug.Log($"MainMenuManager: Steam Lobisine başarıyla katıldı! Lobi ID: {_currentLobbyID}");
 
+            if (steamworksTransportInstance != null && !networkManager.IsClientStarted)
+            {
+                Debug.Log("MainMenuManager: FishNet istemcisi başlatılıyor...");
+                steamworksTransportInstance.StartConnection(false); // false = client
+            }
+            else if (steamworksTransportInstance == null)
+            {
+                Debug.LogError("MainMenuManager: FishySteamworks Transport referansı boş! İstemci başlatılamadı.");
+                HandleConnectionFailure();
+                return;
+            }
+            else
+            {
+                Debug.Log("MainMenuManager: İstemci zaten başlatılmış durumda. Tekrar başlatmaya gerek yok.");
+            }
+
+            // Lobi UI'ını göster ve başlat
             ShowPanel(lobbyPanel);
             _lobbyManagerInstance.InitializeLobbyUI(_currentLobbyID);
-            SteamMatchmaking.SetLobbyMemberData(_currentLobbyID, "ReadyStatus", "false");
-            _lobbyManagerInstance.UpdateReadyButtonState();
+            _lobbyManagerInstance.UpdatePlayerList();
+            SteamMatchmaking.SetLobbyMemberData(_currentLobbyID, "ReadyStatus", "false"); // Hazır durumunu false yap
+            _lobbyManagerInstance.UpdateReadyButtonState(); // Hazır butonu durumunu güncelle
 
-            // ❌ Artık burada StartConnection çağırmıyoruz!
-            // 🔁 LobbyDataUpdate üzerinden takip edeceğiz
+            // Lobby'deki diğer oyuncuların bilgilerini talep et (Adlarını göstermek için)
+            int numMembers = SteamMatchmaking.GetNumLobbyMembers(_currentLobbyID);
+            for (int i = 0; i < numMembers; i++)
+            {
+                CSteamID memberSteamID = SteamMatchmaking.GetLobbyMemberByIndex(_currentLobbyID, i);
+                SteamFriends.RequestUserInformation(memberSteamID, false);
+            }
         }
         else
         {
             Debug.LogError($"MainMenuManager: Steam Lobisine katılamadı: {(EChatRoomEnterResponse)result.m_EChatRoomEnterResponse}");
-            HandleConnectionFailure();
-            ShowPanel(mainMenuPanel);
+            HandleConnectionFailure(); // Bağlantı hatası durumunda temizlik yap
+            ShowPanel(mainMenuPanel); // Hata durumunda ana menüye dön
         }
     }
 
     private void OnLobbyChatUpdate(LobbyChatUpdate_t pCallback)
     {
-        // Sadece geçerli lobinin güncellemesiyle ilgileniyoruz.
-        if (_currentLobbyID.IsValid() && pCallback.m_ulSteamIDLobby == _currentLobbyID.m_SteamID)
+        if (pCallback.m_ulSteamIDLobby == _currentLobbyID.m_SteamID)
         {
             Debug.Log($"MainMenuManager: Lobi Sohbet Güncellemesi: {pCallback.m_ulSteamIDUserChanged} için {pCallback.m_rgfChatMemberStateChange}");
             _lobbyManagerInstance.UpdatePlayerList(); // Oyuncu listesini yeniden çiz
@@ -359,29 +363,16 @@ public class MainMenuManager : MonoBehaviour
 
     private void OnLobbyDataUpdate(LobbyDataUpdate_t pCallback)
     {
-        if (_currentLobbyID.IsValid() && pCallback.m_ulSteamIDLobby == _currentLobbyID.m_SteamID)
+        if (pCallback.m_ulSteamIDLobby == _currentLobbyID.m_SteamID)
         {
             Debug.Log($"MainMenuManager: Lobi Veri Güncellemesi: {pCallback.m_ulSteamIDLobby}");
+            _lobbyManagerInstance.UpdatePlayerList(); // Oyuncu listesini yeniden çiz
 
-            _lobbyManagerInstance.UpdatePlayerList();
-            _lobbyManagerInstance.UpdateReadyButtonState();
-
-            string serverReady = SteamMatchmaking.GetLobbyData(_currentLobbyID, "ServerReady");
-
-            // 🔑 ServerReady geldiğinde istemci bağlan
-            if (!networkManager.IsServerStarted &&
-                !networkManager.IsClientStarted &&
-                serverReady == "true")
-            {
-                Debug.Log("🎯 Server artık hazır. İstemci bağlanıyor...");
-                _steamworksTransportInstance.StartConnection(false); // false = client
-            }
-
-            // Host değilsek ve oyun başlatıldıysa
+            // Eğer lobi host'u oyunu başlattıysa (ve biz host değilsek)
             if (!networkManager.IsServerStarted && SteamMatchmaking.GetLobbyData(_currentLobbyID, "GameStarted") == "true")
             {
                 Debug.Log("MainMenuManager: Lobi host'u oyunu başlattı. Ana oyun sahnesine geçiliyor.");
-                LoadMainGameScene();
+                LoadMainGameScene(); // Ana oyun sahnesini yükle
             }
         }
     }
@@ -394,17 +385,6 @@ public class MainMenuManager : MonoBehaviour
     private void OnPersonaStateChange(PersonaStateChange_t pCallback)
     {
         Debug.Log($"MainMenuManager: Persona durumu değişti: {pCallback.m_ulSteamID} için {pCallback.m_nChangeFlags}");
-
-        // Eğer kendi adımız değiştiyse UI'yi güncelle.
-        if (pCallback.m_ulSteamID == SteamUser.GetSteamID().m_SteamID)
-        {
-            if (_playerNameText != null)
-            {
-                _playerNameText.text = SteamFriends.GetPersonaName();
-            }
-        }
-
-        // Eğer lobiye bağlıysak ve değişen kişi lobideyse
         if (_currentLobbyID.IsValid())
         {
             int numMembers = SteamMatchmaking.GetNumLobbyMembers(_currentLobbyID);
@@ -413,7 +393,7 @@ public class MainMenuManager : MonoBehaviour
                 CSteamID memberSteamID = SteamMatchmaking.GetLobbyMemberByIndex(_currentLobbyID, i);
                 if (memberSteamID.m_SteamID == pCallback.m_ulSteamID)
                 {
-                    _lobbyManagerInstance.UpdatePlayerList(); // Oyuncu listesini yeniden çiz
+                    _lobbyManagerInstance.UpdatePlayerList();
                     break;
                 }
             }
@@ -421,7 +401,7 @@ public class MainMenuManager : MonoBehaviour
     }
 
     // Ortak bağlantı kesme/hata yönetimi metodu
-    public void HandleConnectionFailure()
+    private void HandleConnectionFailure()
     {
         Debug.Log("MainMenuManager: Bağlantı hatası/kesilmesi durumu işleniyor...");
         if (networkManager.IsServerStarted)
@@ -434,15 +414,6 @@ public class MainMenuManager : MonoBehaviour
             networkManager.ClientManager.StopConnection(); // İstemciyi durdur
             Debug.Log("MainMenuManager: İstemci durduruldu.");
         }
-
-        // Steam lobisinden ayrıl, eğer henüz ayrılmadıysak
-        if (_currentLobbyID.IsValid())
-        {
-            SteamMatchmaking.LeaveLobby(_currentLobbyID);
-            Debug.Log($"Steam lobisinden temizleniyor: {_currentLobbyID}");
-        }
-
-        _currentLobbyID = CSteamID.Nil; // Geçerli lobi ID'sini sıfırla
         staticLobbyID = CSteamID.Nil; // Statik Lobi ID'sini sıfırla
         Debug.Log("MainMenuManager: Statik Lobi ID'si sıfırlandı.");
     }
@@ -451,27 +422,20 @@ public class MainMenuManager : MonoBehaviour
     public void LoadMainGameScene()
     {
         Debug.Log("MainMenuManager: Ana oyun sahnesi yükleniyor...");
-        // Lobi ID'sini oyun sahnesi geçişinden önce sıfırla, böylece yeni bir lobide başlayabiliriz.
-        staticLobbyID = CSteamID.Nil;
-        _currentLobbyID = CSteamID.Nil;
-
-        SceneLoadData sld = new(mainGameSceneName)
-        {
-            ReplaceScenes = ReplaceOption.All // Mevcut tüm sahneleri yeni sahne ile değiştir
-        };
+        SceneLoadData sld = new SceneLoadData(mainGameSceneName);
+        sld.ReplaceScenes = ReplaceOption.All; // Mevcut tüm sahneleri yeni sahne ile değiştir
         networkManager.SceneManager.LoadGlobalScenes(sld);
     }
 
-    // --- FishNet Bağlantı Olay İşleyicileri ---
+    // --- FishNet Bağlantı Olay İşleyicileri (BURASI GÜNCELLENDİ) ---
 
     // Client bağlantı durumu değiştiğinde çağrılır (kendi client'ınız için)
     private void OnClientConnectionStateChanged(ClientConnectionStateArgs args)
     {
         Debug.Log($"FishNet İstemci Bağlantı Durumu: {args.ConnectionState}");
         // Eğer istemci bağlantısı kesildiyse
-        if (args.ConnectionState == LocalConnectionState.Stopped)
+        if (args.ConnectionState == LocalConnectionState.Stopped) // StoppedAsHost kaldırıldı, sadece Stopped yeterli
         {
-            Debug.Log("FishNet İstemci Bağlantısı Kesildi. Ana Menüye dönülüyor.");
             HandleConnectionFailure(); // Ortak bağlantı kesme mantığını çağır
             ShowPanel(mainMenuPanel);  // Ana menüye dön
         }
@@ -497,21 +461,12 @@ public class MainMenuManager : MonoBehaviour
     {
         Debug.Log($"FishNet Sunucu Bağlantı Durumu: {args.ConnectionState}");
         // Eğer sunucu durdurulduysa
-        if (args.ConnectionState == LocalConnectionState.Stopped)
+        if (args.ConnectionState == LocalConnectionState.Stopped) // StoppedAsHost kaldırıldı, sadece Stopped yeterli
         {
-            Debug.Log("FishNet Sunucu Bağlantısı Kesildi. Ana Menüye dönülüyor.");
             HandleConnectionFailure(); // Ortak bağlantı kesme mantığını çağır
             ShowPanel(mainMenuPanel);  // Ana menüye dön
         }
     }
-    public void ReturnToMainMenuFromLobby()
-    {
-        Debug.Log("Ana menüye dönülüyor (LobbyManager çağırdı).");
-
-        HandleConnectionFailure(); // Sunucu/client bağlantılarını kes
-        ShowPanel(mainMenuPanel); // Ana menü panelini göster
-    }
-
 
     void OnDestroy()
     {

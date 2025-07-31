@@ -3224,6 +3224,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   playerPrefab: {fileID: 2056877680756426071, guid: ba2d903bfe0c3c043b27835043c3871a, type: 3}
+  spawnPointTag: RespawnPoint
 --- !u!4 &813767234
 Transform:
   m_ObjectHideFlags: 0
