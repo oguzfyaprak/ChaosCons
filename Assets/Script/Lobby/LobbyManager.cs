@@ -215,23 +215,31 @@ public class LobbyManager : MonoBehaviour
             {
                 if (memberSteamID == SteamUser.GetSteamID())
                 {
+                    // Kendi adını doğrudan al
                     personaName = SteamFriends.GetPersonaName();
                 }
                 else
                 {
                     try
                     {
-                        string fetchedName = SteamFriends.GetFriendPersonaName(memberSteamID);
+                        // Bilgi hazır mı kontrol et (false: sadece kontrol)
+                        bool isLoaded = SteamFriends.RequestUserInformation(memberSteamID, false);
 
-                        if (string.IsNullOrEmpty(fetchedName) || fetchedName == "[unknown]")
+                        if (!isLoaded)
                         {
+                            // Değilse yüklenmesini iste (true: bilgi istendi)
                             SteamFriends.RequestUserInformation(memberSteamID, true);
-                            Debug.Log($"[LobbyManager] Steam adı boş veya bilinmeyen, bilgi isteniyor. ID: {memberSteamID}");
                             personaName = "Yükleniyor...";
+                            Debug.Log($"[LobbyManager] Oyuncu adı henüz hazır değil, bilgi istendi. ID: {memberSteamID}");
                         }
                         else
                         {
-                            personaName = fetchedName;
+                            personaName = SteamFriends.GetFriendPersonaName(memberSteamID);
+                            if (string.IsNullOrEmpty(personaName))
+                            {
+                                personaName = "Yükleniyor...";
+                                Debug.Log($"[LobbyManager] Oyuncu adı boş geldi, bekleniyor. ID: {memberSteamID}");
+                            }
                         }
                     }
                     catch (System.Exception ex)
@@ -242,10 +250,13 @@ public class LobbyManager : MonoBehaviour
                 }
             }
 
+            // Host oyuncu mu?
             string hostIndicator = (memberSteamID == SteamMatchmaking.GetLobbyOwner(_currentLobbyID)) ? " (Host)" : "";
-            string readyStatus = SteamMatchmaking.GetLobbyMemberData(_currentLobbyID, memberSteamID, "ReadyStatus");
 
+            // Hazır durumu
+            string readyStatus = SteamMatchmaking.GetLobbyMemberData(_currentLobbyID, memberSteamID, "ReadyStatus");
             string readyIndicator = "";
+
             if (hostIndicator != " (Host)")
             {
                 readyIndicator = (readyStatus == "true") ? " (Hazır)" : " (Hazır Değil)";
@@ -255,8 +266,9 @@ public class LobbyManager : MonoBehaviour
         }
 
         _playerListText.text = sb.ToString();
-        UpdateReadyButtonState();
+        UpdateReadyButtonState(); // Kendi hazır ol butonunu da güncelle
     }
+
 
 
 
