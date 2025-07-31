@@ -188,14 +188,13 @@ public class LobbyManager : MonoBehaviour
     {
         if (_playerListText == null)
         {
-            Debug.LogError("LobbyManager: _playerListText GameObject'i atanmamýþ! Lütfen Unity Inspector'da atayýn.");
+            Debug.LogError("LobbyManager: _playerListText GameObject'i atanmamış! Lütfen Unity Inspector'da atayın.");
             return;
         }
 
         if (!_currentLobbyID.IsValid())
         {
-            // Handle cases where lobby ID might not be valid yet, perhaps if called too early
-            _playerListText.text = "Lobiye baðlý deðil.";
+            _playerListText.text = "Lobiye bağlı değil.";
             return;
         }
 
@@ -205,39 +204,40 @@ public class LobbyManager : MonoBehaviour
         for (int i = 0; i < numMembers; i++)
         {
             CSteamID memberSteamID = SteamMatchmaking.GetLobbyMemberByIndex(_currentLobbyID, i);
-            string personaName = "Yükleniyor..."; // Default to "Loading..."
+            string personaName = "Yükleniyor...";
 
-            if (!memberSteamID.IsValid())
+            if (!memberSteamID.IsValid() || memberSteamID.m_SteamID == 0)
             {
-                Debug.LogWarning($"[LobbyManager] Geçersiz Steam ID bulundu: {memberSteamID}");
+                Debug.LogWarning($"[LobbyManager] Geçersiz Steam ID bulundu: {memberSteamID.m_SteamID}");
                 personaName = "Geçersiz Oyuncu";
             }
             else
             {
-                // For the local player, always get the persona name directly.
                 if (memberSteamID == SteamUser.GetSteamID())
                 {
                     personaName = SteamFriends.GetPersonaName();
                 }
                 else
                 {
-                    // Try to get the friend's persona name.
-                    // SteamFriends.GetFriendPersonaName might return an empty string or "[unknown]"
-                    // if the information isn't yet available after RequestUserInformation.
-                    string fetchedName = SteamFriends.GetFriendPersonaName(memberSteamID);
+                    try
+                    {
+                        string fetchedName = SteamFriends.GetFriendPersonaName(memberSteamID);
 
-                    // If the name is still empty or unknown, request it again and keep "Yükleniyor..."
-                    if (string.IsNullOrEmpty(fetchedName) || fetchedName == "[unknown]")
-                    {
-                        // Requesting information again ensures it's in the queue if not already.
-                        // This is crucial for when PersonaStateChange might not catch all updates immediately.
-                        SteamFriends.RequestUserInformation(memberSteamID, true);
-                        Debug.Log($"[LobbyManager] Steam adý boþ veya bilinmeyen, bilgi isteniyor. ID: {memberSteamID}");
-                        personaName = "Yükleniyor...";
+                        if (string.IsNullOrEmpty(fetchedName) || fetchedName == "[unknown]")
+                        {
+                            SteamFriends.RequestUserInformation(memberSteamID, true);
+                            Debug.Log($"[LobbyManager] Steam adı boş veya bilinmeyen, bilgi isteniyor. ID: {memberSteamID}");
+                            personaName = "Yükleniyor...";
+                        }
+                        else
+                        {
+                            personaName = fetchedName;
+                        }
                     }
-                    else
+                    catch (System.Exception ex)
                     {
-                        personaName = fetchedName;
+                        Debug.LogWarning($"[LobbyManager] Steam adı alınamadı. ID: {memberSteamID}, Hata: {ex.Message}");
+                        personaName = "Bilinmeyen Oyuncu";
                     }
                 }
             }
@@ -246,18 +246,18 @@ public class LobbyManager : MonoBehaviour
             string readyStatus = SteamMatchmaking.GetLobbyMemberData(_currentLobbyID, memberSteamID, "ReadyStatus");
 
             string readyIndicator = "";
-            // Host's ready status is not relevant for game start logic, only clients need to be ready.
             if (hostIndicator != " (Host)")
             {
-                readyIndicator = (readyStatus == "true") ? " (Hazýr)" : " (Hazýr Deðil)";
+                readyIndicator = (readyStatus == "true") ? " (Hazır)" : " (Hazır Değil)";
             }
 
             sb.AppendLine($"- {personaName}{hostIndicator}{readyIndicator}");
         }
 
         _playerListText.text = sb.ToString();
-        UpdateReadyButtonState(); // Ensure ready button state is updated after player list refresh
+        UpdateReadyButtonState();
     }
+
 
 
     // Tüm oyuncularýn hazýr olup olmadýðýný kontrol eder.
