@@ -244,7 +244,9 @@ public class LobbyManager : MonoBehaviour
                     }
                     catch (System.Exception ex)
                     {
-                        Debug.LogWarning($"[LobbyManager] Steam adı alınamadı. ID: {memberSteamID}, Hata: {ex.Message}");
+                        // ex.ToString() bize hatanın hangi satırda, hangi fonksiyonda
+                        // ve hangi dosyanın içinde olduğunu tam olarak gösterir.
+                        Debug.LogWarning($"[LobbyManager] Steam adı alınamadı. ID: {memberSteamID}\nTam Hata: {ex.ToString()}");
                         personaName = "Bilinmeyen Oyuncu";
                     }
                 }
