@@ -38,6 +38,8 @@ public class MainMenuManager : MonoBehaviour
     // Ana menü sahnesinin adı
     [SerializeField] private string mainMenuSceneName = "MainMenuScene";
 
+    [SerializeField] private NetworkManager _networkManager;
+
     // Steam API'den gelen Callback'ler için tutucular
     protected Callback<LobbyCreated_t> LobbyCreated;
     protected Callback<GameLobbyJoinRequested_t> GameLobbyJoinRequested;
@@ -67,12 +69,20 @@ public class MainMenuManager : MonoBehaviour
             }
         }
 
+        _networkManager = FindFirstObjectByType<NetworkManager>();
+        if (_networkManager == null)
+        {
+            Debug.LogError("❌ Sahne içerisinde NetworkManager bulunamadı!");
+        }
+
         steamworksTransportInstance = networkManager.TransportManager.GetTransport<FishySteamworks.FishySteamworks>();
         if (steamworksTransportInstance == null)
         {
             Debug.LogError("MainMenuManager: FishySteamworks Transport bulunamadı!");
             return;
         }
+
+       
 
         ShowPanel(mainMenuPanel);
 
@@ -162,25 +172,31 @@ public class MainMenuManager : MonoBehaviour
 
     private void OnLobbyCreated(LobbyCreated_t result)
     {
+        // Oluşturma başarılı değilse hata logu göster.
         if (result.m_eResult != EResult.k_EResultOK)
         {
-            Debug.LogError($"Steam Lobisi oluşturulamadı: {result.m_eResult}");
-            HandleConnectionFailure();
-            ShowPanel(mainMenuPanel);
+            Debug.LogError($"❌ Steam lobisi oluşturma hatası: {result.m_eResult}");
             return;
         }
 
+        // Lobi ID'sini sakla ve lobiye bağlan.
         _currentLobbyID = new CSteamID(result.m_ulSteamIDLobby);
-        staticLobbyID = _currentLobbyID;
-        Debug.Log($"✅ Steam lobisi başarıyla oluşturuldu! ID: {_currentLobbyID}");
+        Debug.Log($"✅ Steam lobisi başarıyla oluşturuldu! ID: {_currentLobbyID.m_SteamID}");
 
-        networkManager.ServerManager.StartConnection();
-        networkManager.ClientManager.StartConnection();
+        // Yeni bir lobi oluşturulduğunda, host hem sunucu hem de istemci olarak başlar.
+        _networkManager.ServerManager.StartConnection();
+        _networkManager.ClientManager.StartConnection();
 
-        SteamMatchmaking.SetLobbyData(_currentLobbyID, "HostAddress", SteamUser.GetSteamID().ToString());
-
-        ShowPanel(lobbyPanel);
-        _lobbyManagerInstance.InitializeLobbyUI(_currentLobbyID);
+        // HATA GİDERME: UI Manager'ın varlığını kontrol et.
+        if (_lobbyManagerInstance != null && _currentLobbyID.IsValid())
+        {
+            // UI'ı başlat ve lobi bilgilerini göster.
+            _lobbyManagerInstance.InitializeLobbyUI(_currentLobbyID);
+        }
+        else
+        {
+            Debug.LogError("Lobi yöneticisi başlatılamadı veya lobi ID geçersiz!");
+        }
     }
 
     private void OnGameLobbyJoinRequested(GameLobbyJoinRequested_t result)
@@ -226,23 +242,25 @@ public class MainMenuManager : MonoBehaviour
         }
     }
 
+    // MainMenuManager.cs
     private void OnLobbyDataUpdate(LobbyDataUpdate_t pCallback)
     {
+        // Sadece mevcut lobiye ait verilerin güncellendiğinden emin ol.
         if (pCallback.m_ulSteamIDLobby == _currentLobbyID.m_SteamID)
         {
             Debug.Log("Lobby Data Update: Lobi UI güncelleniyor.");
-            // --- İYİLEŞTİRME: Lobi paneli aktifse güncelleme yap ---
+
+            // HATA GİDERME: UI Manager ve lobi panelinin varlığını kontrol et.
+            // Bu, `LobbyManager` yoksa veya UI pasifse kodun çökmesini önler.
             if (_lobbyManagerInstance != null && lobbyPanel != null && lobbyPanel.activeInHierarchy)
             {
+                // Oyuncu listesini ve hazır butonunu güncelle.
                 _lobbyManagerInstance.UpdatePlayerList();
                 _lobbyManagerInstance.UpdateReadyButtonState();
             }
-
-
-            if (!networkManager.IsServerStarted && SteamMatchmaking.GetLobbyData(_currentLobbyID, "GameStarted") == "true")
+            else
             {
-                Debug.Log("Lobi host'u oyunu başlattı. Ana oyun sahnesine geçiliyor.");
-                LoadMainGameScene();
+                Debug.LogWarning("Lobi UI'ı aktif olmadığı için güncelleme pas geçildi.");
             }
         }
     }
@@ -256,15 +274,13 @@ public class MainMenuManager : MonoBehaviour
     {
         Debug.Log($"Persona durumu değişti: {pCallback.m_ulSteamID}");
 
-        // --- DÜZELTME 1: "Yükleniyor..." sorununu çözen basitleştirilmiş mantık ---
-        // Artık kimin bilgisi değiştiğine bakmıyoruz. Sadece listeyi güncelliyoruz.
-        // Bu, yeni katılan oyuncuların isimlerinin doğru bir şekilde yüklenmesini sağlar.
-        if (_lobbyManagerInstance != null && lobbyPanel.activeInHierarchy)
+        // Lobideyseniz ve LobbyManager referansı varsa, oyuncu listesini güncelle.
+        if (_currentLobbyID.IsValid() && _lobbyManagerInstance != null)
         {
+            // Bu satırın mevcut olduğundan emin olun.
             _lobbyManagerInstance.UpdatePlayerList();
         }
     }
-
     // --- BAĞLANTI YÖNETİMİ VE DİĞER FONKSİYONLAR ---
 
     private void HandleConnectionFailure()

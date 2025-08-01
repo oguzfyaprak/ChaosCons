@@ -700,6 +700,7 @@ MonoBehaviour:
   readyButton: {fileID: 1520713904}
   mainGameSceneName: MainMap
   mainMenuSceneName: MainMenu
+  _networkManager: {fileID: 500795862}
 --- !u!114 &267258800
 MonoBehaviour:
   m_ObjectHideFlags: 0
