@@ -9,7 +9,6 @@ public class PlayerSteamInfo : NetworkBehaviour
     public readonly SyncVar<string> SteamId = new();
     public readonly SyncVar<bool> IsReady = new();
 
-
     public override void OnStartClient()
     {
         base.OnStartClient();
@@ -20,6 +19,13 @@ public class PlayerSteamInfo : NetworkBehaviour
             string id = SteamUser.GetSteamID().ToString();
             ServerSendSteamInfo(name, id);
         }
+
+        // SteamName deðiþtiðinde otomatik güncelle
+        SteamName.OnChange += (oldVal, newVal, asServer) =>
+        {
+            var lobby = FindFirstObjectByType<LobbyManager>();
+            lobby?.UpdatePlayerList();
+        };
     }
 
     [ServerRpc]
