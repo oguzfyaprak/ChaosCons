@@ -687,6 +687,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   networkManager: {fileID: 500795862}
+  _networkManager: {fileID: 500795862}
   mainMenuPanel: {fileID: 39261313}
   lobbySelectionPanel: {fileID: 1771413727}
   joinLobbyPanel: {fileID: 1038774888}
@@ -700,7 +701,6 @@ MonoBehaviour:
   readyButton: {fileID: 1520713904}
   mainGameSceneName: MainMap
   mainMenuSceneName: MainMenu
-  _networkManager: {fileID: 500795862}
 --- !u!114 &267258800
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -713,6 +713,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c177542b4ccd32349836711e3c06651b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  lobbyPlayerInfoPrefab: {fileID: 332026136740646646, guid: c72707d80ee3f8041a720351f05ae8a8, type: 3}
 --- !u!4 &267258801
 Transform:
   m_ObjectHideFlags: 0
@@ -1117,6 +1118,22 @@ MonoBehaviour:
   _maximumClients: 9001
   _peerToPeer: 1
   _clientAddress: 
+--- !u!114 &500795868
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 500795858}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 15895a51081447d46bda466e7e830c08, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _sceneProcessor: {fileID: 0}
+  _lightProbeUpdating: 0
+  _moveClientObjects: 1
+  _setActiveScene: 1
 --- !u!1 &508961326
 GameObject:
   m_ObjectHideFlags: 0
@@ -2672,6 +2689,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 7443408887813606051, guid: 0b650fca685f2eb41a86538aa883e4c1, type: 3}
       insertIndex: -1
       addedObject: {fileID: 500795865}
+    - targetCorrespondingSourceObject: {fileID: 7443408887813606051, guid: 0b650fca685f2eb41a86538aa883e4c1, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 500795868}
   m_SourcePrefab: {fileID: 100100000, guid: 0b650fca685f2eb41a86538aa883e4c1, type: 3}
 --- !u!1 &834422949
 GameObject:
@@ -5837,7 +5857,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
@@ -5880,7 +5900,7 @@ MonoBehaviour:
   m_VertexBufferAutoSizeReduction: 0
   m_useMaxVisibleDescender: 1
   m_pageToDisplay: 1
-  m_margin: {x: 0, y: 0, z: 0, w: 0}
+  m_margin: {x: 0, y: -75.7688, z: -132.62683, w: -86.341095}
   m_isUsingLegacyAnimationComponent: 0
   m_isVolumetricText: 0
   m_hasFontAssetChanged: 0

@@ -1,5 +1,4 @@
-﻿// LobbyManager.cs
-using UnityEngine;
+﻿using UnityEngine;
 using TMPro;
 using FishNet.Managing;
 using FishNet.Transporting;
@@ -9,6 +8,7 @@ using System.Text;
 using System.Collections.Generic;
 using FishNet.Connection;
 using UnityEngine.UI;
+using System.Collections;
 
 public class LobbyManager : MonoBehaviour
 {
@@ -29,48 +29,62 @@ public class LobbyManager : MonoBehaviour
     private void OnEnable()
     {
         _lobbyDataUpdateCallback = Callback<LobbyDataUpdate_t>.Create(OnLobbyDataUpdate);
+
+        // Sahne geçişlerinde null pointer hatası almamak için LocalInstance referansı kontrol edilecek
+        StartCoroutine(WaitAndUpdatePlayerList());
+    }
+
+    private IEnumerator WaitAndUpdatePlayerList()
+    {
+        // Oyuncu objeleri ve SyncVar’lar oturana kadar 2 frame bekleyip player listesini güncelle
+        yield return null;
+        yield return null;
+        UpdatePlayerList();
     }
 
     private void OnDisable()
     {
         _lobbyDataUpdateCallback?.Dispose();
 
-        // Abonelikleri kaldır
         if (_networkManager != null && _networkManager.ServerManager != null)
         {
             _networkManager.ServerManager.OnRemoteConnectionState -= OnRemoteConnectionState;
         }
     }
 
-    // DEĞİŞTİ: Bu, hem oyuncu bağlanmasını hem de ayrılmasını yöneten yeni olay yöneticisidir.
     private void OnRemoteConnectionState(NetworkConnection conn, RemoteConnectionStateArgs args)
     {
-        if (args.ConnectionState == RemoteConnectionState.Started) // Oyuncu bağlandı
+        if (args.ConnectionState == RemoteConnectionState.Started)
         {
-            // DEĞİŞTİ: Artık sadece oyuncu objesini spawn ediyoruz. İsim ayarlama işini obje kendisi yapacak.
-            var obj = Instantiate(lobbyPlayerInfoPrefab);
-            _networkManager.ServerManager.Spawn(obj, conn);
+            conn.OnLoadedStartScenes += (connection, asServer) =>
+            {
+                if (lobbyPlayerInfoPrefab == null)
+                {
+                    Debug.LogError("LobbyPlayerInfo prefabı atanmamış!");
+                    return;
+                }
 
-            var info = obj.GetComponent<LobbyPlayerInfo>();
-            _playerInfoMap[conn.ClientId] = info;
+                var obj = Instantiate(lobbyPlayerInfoPrefab);
+                _networkManager.ServerManager.Spawn(obj, conn);
 
-            // ARTIK GEREKLİ DEĞİL: Bu satırları siliyoruz.
-            // CSteamID steamId = _steamworksTransport.GetSteamID(conn.ClientId);
-            // string steamName = SteamFriends.GetFriendPersonaName(steamId);
-            // info.TargetSetSteamName(conn, steamName);
+                var info = obj.GetComponent<LobbyPlayerInfo>();
+                if (info != null)
+                {
+                    _playerInfoMap[conn.ClientId] = info;
+                    Debug.Log($"[LobbyManager] Oyuncu {conn.ClientId} lobiye katıldı.");
+                }
 
-            // DEĞİŞTİ: Log mesajını basitleştiriyoruz, çünkü isim SyncVar ile daha sonra gelecek.
-            Debug.Log($"[LobbyManager] → Oyuncu {conn.ClientId} bağlandı ve lobi objesi oluşturuldu.");
+                UpdatePlayerList();
+            };
         }
-        else if (args.ConnectionState == RemoteConnectionState.Stopped) // Oyuncu ayrıldı
+        else if (args.ConnectionState == RemoteConnectionState.Stopped)
         {
             if (_playerInfoMap.Remove(conn.ClientId))
             {
-                Debug.Log($"[LobbyManager] → Oyuncu {conn.ClientId} ayrıldı.");
+                Debug.Log($"[LobbyManager] Oyuncu {conn.ClientId} ayrıldı.");
             }
+            UpdatePlayerList();
         }
-
-        UpdatePlayerList();
     }
 
     private void OnLobbyDataUpdate(LobbyDataUpdate_t pCallback)
@@ -82,9 +96,9 @@ public class LobbyManager : MonoBehaviour
     }
 
     public void Initialize(NetworkManager nm, FishySteamworks.FishySteamworks fst,
-                             TMP_Text lobbyIdTxt, TMP_Text playerListTxt,
-                             GameObject startGameBtn, GameObject leaveLobbyBtn,
-                             GameObject readyBtn, string mainGameScene)
+                          TMP_Text lobbyIdTxt, TMP_Text playerListTxt,
+                          GameObject startGameBtn, GameObject leaveLobbyBtn,
+                          GameObject readyBtn, string mainGameScene)
     {
         _networkManager = nm;
         _steamworksTransport = fst;
@@ -99,7 +113,6 @@ public class LobbyManager : MonoBehaviour
         _leaveLobbyButton?.GetComponent<Button>()?.onClick.AddListener(OnClick_LeaveLobby);
         _readyButton?.GetComponent<Button>()?.onClick.AddListener(OnClick_Ready);
 
-        // DEĞİŞTİ: Yeni olaya abone oluyoruz.
         if (_networkManager.ServerManager != null)
         {
             _networkManager.ServerManager.OnRemoteConnectionState += OnRemoteConnectionState;
@@ -109,7 +122,6 @@ public class LobbyManager : MonoBehaviour
     public void InitializeLobbyUI(CSteamID lobbyID)
     {
         _currentLobbyID = lobbyID;
-        // ... (Bu fonksiyonun geri kalanı aynı kalabilir)
         if (_lobbyIdText != null)
             _lobbyIdText.text = $"Lobi ID: {_currentLobbyID.m_SteamID}";
 
@@ -133,7 +145,7 @@ public class LobbyManager : MonoBehaviour
             return;
         }
 
-        Debug.Log("[LobbyManager] → Oyuna geçiliyor...");
+        Debug.Log("[LobbyManager] Oyuna geçiliyor...");
         SteamMatchmaking.SetLobbyData(_currentLobbyID, "GameStarted", "true");
 
         var mainMenu = FindFirstObjectByType<MainMenuManager>();
@@ -142,8 +154,7 @@ public class LobbyManager : MonoBehaviour
 
     public void OnClick_LeaveLobby()
     {
-        // ... (Bu fonksiyon aynı kalabilir)
-        Debug.Log("[LobbyManager] → Lobiden çıkılıyor.");
+        Debug.Log("[LobbyManager] Lobiden çıkılıyor.");
         if (_currentLobbyID.IsValid())
         {
             SteamMatchmaking.LeaveLobby(_currentLobbyID);
@@ -169,8 +180,11 @@ public class LobbyManager : MonoBehaviour
 
         foreach (var info in _playerInfoMap.Values)
         {
-            if (info == null) continue;
-            // DEĞİŞTİ: Değerlere .Value ile erişiyoruz.
+            if (info == null)
+            {
+                sb.AppendLine("- Bağlantı bekleniyor...");
+                continue;
+            }
             string name = string.IsNullOrEmpty(info.SteamName.Value) ? "Yükleniyor..." : info.SteamName.Value;
             string readyStatus = info.IsReady.Value ? "<color=green>[HAZIR]</color>" : "<color=yellow>[HAZIR DEĞİL]</color>";
             sb.AppendLine($"- {name} {readyStatus}");
@@ -182,12 +196,12 @@ public class LobbyManager : MonoBehaviour
 
     public void UpdateReadyButtonState()
     {
-        if (_readyButton == null || !LobbyPlayerInfo.LocalInstance) return;
+        if (_readyButton == null) return;
+        if (LobbyPlayerInfo.LocalInstance == null) return;
 
         var text = _readyButton.GetComponentInChildren<TMP_Text>();
         if (text != null)
         {
-            // DEĞİŞTİ: Değere .Value ile erişiyoruz.
             text.text = LobbyPlayerInfo.LocalInstance.IsReady.Value ? "Hazır (İptal)" : "Hazır Ol";
         }
     }
@@ -198,9 +212,7 @@ public class LobbyManager : MonoBehaviour
 
         foreach (var info in _playerInfoMap.Values)
         {
-            if (info.Owner.IsHost) continue; // Hostun hazır olması gerekmez.
-
-            // DEĞİŞTİ: Değere .Value ile erişiyoruz.
+            if (info.Owner.IsHost) continue;
             if (!info.IsReady.Value) return false;
         }
         return true;
