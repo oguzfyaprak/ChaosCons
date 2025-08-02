@@ -176,6 +176,7 @@ public class MainMenuManager : MonoBehaviour
 
     private void OnLobbyEntered(LobbyEnter_t result)
     {
+        // Lobiye katılma isteği başarısız olursa
         if ((EChatRoomEnterResponse)result.m_EChatRoomEnterResponse != EChatRoomEnterResponse.k_EChatRoomEnterResponseSuccess)
         {
             Debug.LogError($"Lobiye katılamadı: {(EChatRoomEnterResponse)result.m_EChatRoomEnterResponse}");
@@ -186,9 +187,30 @@ public class MainMenuManager : MonoBehaviour
         _currentLobbyID = new CSteamID(result.m_ulSteamIDLobby);
         staticLobbyID = _currentLobbyID;
 
+        // Eğer host değilsek (yani sunucu başlamadıysa) bir istemci olarak bağlanmalıyız.
+        // Host zaten lobi oluşturduğunda sunucuyu ve istemciyi başlatmıştı.
         if (!networkManager.IsServerStarted)
         {
-            networkManager.ClientManager.StartConnection();
+            uint serverIp;
+            ushort serverPort;
+            CSteamID serverSteamId;
+
+            // Steam'den lobiye atanmış sunucu bilgilerini almaya çalış.
+            if (SteamMatchmaking.GetLobbyGameServer(_currentLobbyID, out serverIp, out serverPort, out serverSteamId))
+            {
+                // Sunucu bilgileri başarıyla alındı.
+                Debug.Log($"İstemci olarak lobiye bağlanılıyor... Sunucu IP: {new System.Net.IPAddress(serverIp)}, Port: {serverPort}");
+
+                // FishySteamworks, lobiye bağlanırken bu bilgileri otomatik olarak kullanır.
+                // Bu nedenle, sadece istemci bağlantısını başlatmak yeterlidir.
+                networkManager.ClientManager.StartConnection();
+            }
+            else
+            {
+                Debug.LogError("Lobi için sunucu bilgisi (IP/Port) alınamadı. Bağlantı başlatılamıyor.");
+                ShowPanel(mainMenuPanel);
+                return;
+            }
         }
 
         Debug.Log($"Lobiye katıldı! Lobi ID: {_currentLobbyID}");

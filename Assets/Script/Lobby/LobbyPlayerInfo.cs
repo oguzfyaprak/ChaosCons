@@ -18,6 +18,7 @@ public class LobbyPlayerInfo : NetworkBehaviour
     {
         base.OnStartClient();
 
+        // LocalInstance null ise veya farklı ise ayarla
         if (IsOwner)
         {
             LocalInstance = this;
@@ -32,6 +33,10 @@ public class LobbyPlayerInfo : NetworkBehaviour
 
         SteamName.OnChange += OnPlayerInfoChanged;
         IsReady.OnChange += OnPlayerInfoChanged;
+
+        // Ek: SteamName ilk yüklendiğinde de OnPlayerInfoChanged çalıştır
+        if (!string.IsNullOrEmpty(SteamName.Value))
+            OnPlayerInfoChanged(SteamName.Value, SteamName.Value, false);
     }
 
     private IEnumerator DelayedSteamInfoSend()
@@ -40,6 +45,10 @@ public class LobbyPlayerInfo : NetworkBehaviour
         string name = SteamFriends.GetPersonaName();
         string id = SteamUser.GetSteamID().ToString();
         ServerSendSteamInfo(name, id);
+
+        // Ek: 2 frame sonra tekrar lobby listesini güncelle
+        yield return null;
+        _lobbyManager?.UpdatePlayerList();
     }
 
     public override void OnStopNetwork()
@@ -47,6 +56,8 @@ public class LobbyPlayerInfo : NetworkBehaviour
         base.OnStopNetwork();
         SteamName.OnChange -= OnPlayerInfoChanged;
         IsReady.OnChange -= OnPlayerInfoChanged;
+        if (LocalInstance == this)
+            LocalInstance = null; // Sahne geçişinde veya lobi çıkışında referansı temizle
     }
 
     [ServerRpc]
