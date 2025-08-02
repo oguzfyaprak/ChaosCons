@@ -151,20 +151,35 @@ public class MainMenuManager : MonoBehaviour
 
         // --- EN KRİTİK ADIM ---
         // Hostun portunu Steam'e bildir!
-        SteamMatchmaking.SetLobbyGameServer(
-     _currentLobbyID,
-     0,
-     steamworksTransportInstance.GetPort(),
-     SteamUser.GetSteamID()
- );
 
-        Debug.Log("FishySteamworks portu: " + steamworksTransportInstance.GetPort());
+        ushort serverPort = 7777;
+        SteamMatchmaking.SetLobbyGameServer(
+        _currentLobbyID,
+        0,
+        serverPort, // Artık elle atadığınız portu kullanıyoruz.
+        SteamUser.GetSteamID()
+    );
+
+        Debug.Log("Lobiye bildirilen port: " + serverPort);
 
 
         if (_lobbyManagerInstance != null && _currentLobbyID.IsValid())
         {
             _lobbyManagerInstance.InitializeLobbyUI(_currentLobbyID);
             ShowPanel(lobbyPanel);
+        }
+
+        uint serverIpCheck;
+        ushort serverPortCheck;
+        CSteamID serverSteamIdCheck;
+
+        if (SteamMatchmaking.GetLobbyGameServer(_currentLobbyID, out serverIpCheck, out serverPortCheck, out serverSteamIdCheck))
+        {
+            Debug.Log($"[HOST] Steam'e kaydedilen sunucu bilgisi -> IP: {new System.Net.IPAddress(serverIpCheck)}, Port: {serverPortCheck}");
+        }
+        else
+        {
+            Debug.LogError("[HOST] Sunucu bilgileri Steam'e kaydedilemedi!");
         }
     }
 
