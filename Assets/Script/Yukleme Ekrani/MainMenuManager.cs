@@ -144,10 +144,22 @@ public class MainMenuManager : MonoBehaviour
         }
 
         _currentLobbyID = new CSteamID(result.m_ulSteamIDLobby);
-        Debug.Log($"Lobi oluşturuldu! ID: {_currentLobbyID.m_SteamID}");
 
+        // HOST → SUNUCUYU BAŞLAT!
         _networkManager.ServerManager.StartConnection();
         _networkManager.ClientManager.StartConnection();
+
+        // --- EN KRİTİK ADIM ---
+        // Hostun portunu Steam'e bildir!
+        SteamMatchmaking.SetLobbyGameServer(
+     _currentLobbyID,
+     0,
+     steamworksTransportInstance.GetPort(),
+     SteamUser.GetSteamID()
+ );
+
+        Debug.Log("FishySteamworks portu: " + steamworksTransportInstance.GetPort());
+
 
         if (_lobbyManagerInstance != null && _currentLobbyID.IsValid())
         {
