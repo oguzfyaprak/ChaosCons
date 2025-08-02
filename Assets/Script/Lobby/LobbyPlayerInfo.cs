@@ -3,7 +3,7 @@ using FishNet.Object;
 using FishNet.Object.Synchronizing;
 using Steamworks;
 using FishNet.Connection;
-using FishNet.Managing;
+using System.Collections;
 
 public class LobbyPlayerInfo : NetworkBehaviour
 {
@@ -21,12 +21,9 @@ public class LobbyPlayerInfo : NetworkBehaviour
         if (IsOwner)
         {
             LocalInstance = this;
-
             if (SteamManager.Initialized)
             {
-                string name = SteamFriends.GetPersonaName();
-                string id = SteamUser.GetSteamID().ToString();
-                ServerSendSteamInfo(name, id);
+                StartCoroutine(DelayedSteamInfoSend());
             }
         }
 
@@ -37,11 +34,12 @@ public class LobbyPlayerInfo : NetworkBehaviour
         IsReady.OnChange += OnPlayerInfoChanged;
     }
 
-    public override void OnStartNetwork()
+    private IEnumerator DelayedSteamInfoSend()
     {
-        base.OnStartNetwork();
-        SteamName.OnChange += OnPlayerInfoChanged;
-        IsReady.OnChange += OnPlayerInfoChanged;
+        yield return null;
+        string name = SteamFriends.GetPersonaName();
+        string id = SteamUser.GetSteamID().ToString();
+        ServerSendSteamInfo(name, id);
     }
 
     public override void OnStopNetwork()
