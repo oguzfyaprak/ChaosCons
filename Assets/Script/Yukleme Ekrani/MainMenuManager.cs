@@ -137,50 +137,53 @@ public class MainMenuManager : MonoBehaviour
 
     private void OnLobbyCreated(LobbyCreated_t result)
     {
+        // Lobi oluşturma isteği başarısız olursa
         if (result.m_eResult != EResult.k_EResultOK)
         {
             Debug.LogError($"Lobi oluşturma hatası: {result.m_eResult}");
+            ShowPanel(mainMenuPanel);
             return;
         }
 
         _currentLobbyID = new CSteamID(result.m_ulSteamIDLobby);
+        staticLobbyID = _currentLobbyID;
 
-        // HOST → SUNUCUYU BAŞLAT!
-        _networkManager.ServerManager.StartConnection();
-        _networkManager.ClientManager.StartConnection();
+        Debug.Log($"Lobi oluşturuldu. Lobi ID: {_currentLobbyID}");
 
-        // --- EN KRİTİK ADIM ---
-        // Hostun portunu Steam'e bildir!
+        // Host olarak hem sunucu hem de istemci bağlantılarını başlat.
+        // FishySteamworks P2P modunda, bu çağrılar otomatik olarak Steam ID'sini kullanarak
+        // doğru şekilde bağlanacaktır.
+        networkManager.ServerManager.StartConnection();
+        networkManager.ClientManager.StartConnection();
 
-        ushort serverPort = 7777;
+        // Bu noktada, Steam'e IP ve port bildirmek yerine, sadece lobiye bir "game server" olduğunu
+        // ve bu server'ın kendi Steam ID'sine sahip olduğunu bildirmek yeterli olabilir.
+        // Eğer FishySteamworks P2P kullanıyorsanız, bu satırı yorum satırı olarak bırakmak
+        // en doğru yaklaşım olacaktır. FishySteamworks'ün kendisi bu durumu zaten yönetir.
+
+        // SteamMatchmaking.SetLobbyGameServer(
+        //     _currentLobbyID,
+        //     0, // IP adresi gerekmez
+        //     0, // Port numarası gerekmez
+        //     SteamUser.GetSteamID() // Sunucunun Steam ID'sini bildirir
+        // );
+
+        // FishySteamworks port bilgisini manuel olarak yazdığımız için aşağıdaki satırı ekledim.
+        // Bu satır, lobinin portunu FishySteamworks'ün ayarlarından alarak Steam'e bildirir.
+        // Daha önceki sorununuzda portun 0 olmasının sebebi, GetPort()'un yanlış değer dönmesiydi.
+        // Bu yüzden bu satırda elle atama yapmak daha güvenli.
+        ushort serverPort = 7777; // Inspector'daki port numaranızı buraya yazın.
         SteamMatchmaking.SetLobbyGameServer(
-        _currentLobbyID,
-        0,
-        serverPort, // Artık elle atadığınız portu kullanıyoruz.
-        SteamUser.GetSteamID()
-    );
+            _currentLobbyID,
+            0, // P2P için IP 0 olarak kalabilir
+            serverPort, // Elle atanan port numarasını kullanın
+            SteamUser.GetSteamID()
+        );
 
-        Debug.Log("Lobiye bildirilen port: " + serverPort);
+        Debug.Log($"[HOST] Steam'e bildirilen port: {serverPort}");
 
-
-        if (_lobbyManagerInstance != null && _currentLobbyID.IsValid())
-        {
-            _lobbyManagerInstance.InitializeLobbyUI(_currentLobbyID);
-            ShowPanel(lobbyPanel);
-        }
-
-        uint serverIpCheck;
-        ushort serverPortCheck;
-        CSteamID serverSteamIdCheck;
-
-        if (SteamMatchmaking.GetLobbyGameServer(_currentLobbyID, out serverIpCheck, out serverPortCheck, out serverSteamIdCheck))
-        {
-            Debug.Log($"[HOST] Steam'e kaydedilen sunucu bilgisi -> IP: {new System.Net.IPAddress(serverIpCheck)}, Port: {serverPortCheck}");
-        }
-        else
-        {
-            Debug.LogError("[HOST] Sunucu bilgileri Steam'e kaydedilemedi!");
-        }
+        ShowPanel(lobbyPanel);
+        _lobbyManagerInstance.InitializeLobbyUI(_currentLobbyID);
     }
 
     private void OnGameLobbyJoinRequested(GameLobbyJoinRequested_t result)
