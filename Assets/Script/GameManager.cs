@@ -4,7 +4,7 @@ using FishNet.Object.Synchronizing;
 using TMPro;
 using UnityEngine.SceneManagement;
 
-public class GameManager : NetworkBehaviour
+public class GameTimerManager: NetworkBehaviour
 {
     [SerializeField] private float gameDurationInSeconds = 900f; // 15 dakika
     private readonly SyncVar<float> remainingTime = new SyncVar<float>();
