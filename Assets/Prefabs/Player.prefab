@@ -377,7 +377,7 @@ GameObject:
   - component: {fileID: -7881372377734059102}
   - component: {fileID: 8983735533132575881}
   - component: {fileID: -7155099967221520595}
-  - component: {fileID: -3459912679422192741}
+  - component: {fileID: 167198644531882063}
   m_Layer: 3
   m_Name: Player
   m_TagString: Player
@@ -661,7 +661,7 @@ MonoBehaviour:
   RuntimeChildNetworkBehaviours: []
   _isNetworked: 1
   _isSpawnable: 1
-  _isGlobal: 0
+  _isGlobal: 1
   _initializeOrder: 0
   _preventDespawnOnDisconnect: 0
   _defaultDespawnType: 0
@@ -896,7 +896,7 @@ MonoBehaviour:
   _componentIndexCache: 8
   _addedNetworkObject: {fileID: 7837606397448522166}
   _networkObjectCache: {fileID: 7837606397448522166}
---- !u!114 &-3459912679422192741
+--- !u!114 &167198644531882063
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

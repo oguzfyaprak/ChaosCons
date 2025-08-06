@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections;
 using FishNet;
 using FishNet.Managing.Scened;
 using UnityEngine;
@@ -10,13 +9,17 @@ namespace Game
 {
     public enum EScenes
     {
-        Boot, MainMenu, Game, Loading
+        Boot,
+        MainMenu,
+        MainMap,   // 🔁 'Game' yerine bunu kullanacağız
+        Loading
     }
+
     public class ScenesManager : MonoBehaviour
     {
         public static Action<EScenes> OnSceneLoaded;
         private static ScenesManager _instance;
-        
+
         private EScenes _currentScene;
 
         private void Awake()
@@ -26,14 +29,17 @@ namespace Game
 
         public static void ChangeScene(EScenes scene, bool asServer = false)
         {
-            if(_instance == null) return;
+            if (_instance == null) return;
+
+            Debug.Log($"[ScenesManager] Sahne geçişi isteniyor → {scene} | Server mı? {asServer}");
 
             if (asServer)
             {
-                SceneLoadData sld = new SceneLoadData(EScenes.Game.ToString());
+                SceneLoadData sld = new SceneLoadData(scene.ToString());
                 sld.ReplaceScenes = ReplaceOption.All;
+
                 InstanceFinder.SceneManager.LoadGlobalScenes(sld);
-                
+
                 return;
             }
 

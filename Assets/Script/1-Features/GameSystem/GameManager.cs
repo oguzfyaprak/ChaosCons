@@ -35,7 +35,7 @@ namespace Game.GameSystem
                 return;
             }
             
-            ScenesManager.ChangeScene(EScenes.Game, true);
+            ScenesManager.ChangeScene(EScenes.MainMap, true);
         }
 
         public static bool IsAllPlayersReady()
