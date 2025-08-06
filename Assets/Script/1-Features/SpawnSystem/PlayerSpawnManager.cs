@@ -55,12 +55,13 @@ namespace Game
                 client.S_SetPosition(spawnPoint.position, spawnPoint.rotation, true);
             }
         }
-        
+
         private void OnSceneLoaded(SceneLoadEndEventArgs obj)
         {
-            if(obj.LoadedScenes.Length == 0) return;
-            
-            if (obj.LoadedScenes[0].name == EScenes.Game.ToString())
+            if (obj.LoadedScenes.Length == 0) return;
+
+            // 🔁 BURASI DEĞİŞTİ
+            if (obj.LoadedScenes[0].name == EScenes.MainMap.ToString())
             {
                 int index = 0;
                 foreach (var client in PlayerConnectionManager.Instance.AllClients)
@@ -68,7 +69,7 @@ namespace Game
                     SpawnPlayer(client.ObjectId, index);
                     index++;
                 }
-            }        
+            }
         }
     }
 }
