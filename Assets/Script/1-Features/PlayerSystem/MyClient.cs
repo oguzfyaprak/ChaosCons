@@ -26,26 +26,26 @@ namespace Game.PlayerSystem
 
     public class MyClient : BaseNetworkBehaviour
     {
-        public static Action<MyClient> OnStartClient;
+        public new static Action<MyClient> OnStartClient;
         public static Action<bool> OnIsReady;
         public static Action<MyClient> C_OnSetPosition;
-        
-        
+
+
         public readonly SyncVar<PlayerInfoData> PlayerInfo = new SyncVar<PlayerInfoData>();
         public readonly SyncVar<bool> IsReady = new SyncVar<bool>();
 
         [FormerlySerializedAs("mesh")]
-        [Header("Controller")] 
+        [Header("Controller")]
         [SerializeField] private GameObject contoller;
         [SerializeField] private Behaviour[] componentsToEnable;
-        
+
         //got lazy so decided to have the UI in the party a worldspace Canvas
-        [Header("Party NameTag")] 
+        [Header("Party NameTag")]
         [SerializeField] private TMP_Text _usernameText;
         [SerializeField] private TMP_Text _isReadyText;
 
         private CharacterController _characterController;
-        
+
         protected override void RegisterEvents()
         {
             PlayerConnectionManager.Instance.AllClients.Add(this);
@@ -53,22 +53,22 @@ namespace Game.PlayerSystem
             IsReady.OnChange += OnIsReadyChange;
 
             _characterController = GetComponent<CharacterController>();
-            
+
             //if owned by/is local player
             if (IsOwner)
             {
                 OnStartClient?.Invoke(this);
                 PopupManager.Popup_Close();
             }
-            
+
             Cmd_UpdatePlayerInfo(SteamClient.SteamId, SteamClient.Name);
 
         }
-        
+
         protected override void UnregisterEvents()
         {
             PlayerConnectionManager.Instance.AllClients.Remove(this);
-            
+
             OnStartClient?.Invoke(null);
             PlayerInfo.OnChange -= OnPlayerDataChange;
             IsReady.OnChange -= OnIsReadyChange;
@@ -77,11 +77,11 @@ namespace Game.PlayerSystem
         [ObserversRpc]
         public void Rpc_ToggleController(bool value)
         {
-            
-            if(!IsOwner) return;
+
+            if (!IsOwner) return;
 
             Cursor.lockState = CursorLockMode.Locked;
-            
+
             contoller.SetActive(value);
 
             foreach (var component in componentsToEnable)
@@ -104,10 +104,10 @@ namespace Game.PlayerSystem
         private void TRpc_SetPosition(NetworkConnection conn, Vector3 pos, Quaternion rot)
         {
             _characterController.enabled = false;
-            
+
             transform.position = pos;
             transform.rotation = rot;
-            
+
             _characterController.enabled = true;
 
             C_OnSetPosition?.Invoke(this);
@@ -126,25 +126,25 @@ namespace Game.PlayerSystem
         {
             PlayerInfo.Value = new PlayerInfoData(username, steamId);
         }
-        
-        
+
+
         private void OnIsReadyChange(bool prev, bool value, bool asserver)
         {
             _isReadyText.text = value ? "Ready" : "Not Ready";
-            
+
             if (IsOwner)
             {
                 OnIsReady?.Invoke(value);
             }
         }
-        
+
         [ServerRpc(RequireOwnership = false)]
         public void Cmd_ReadyUp()
         {
             IsReady.Value = !IsReady.Value;
         }
 
-#endregion
-   
+        #endregion
+
     }
 }

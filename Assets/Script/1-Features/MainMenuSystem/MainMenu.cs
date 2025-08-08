@@ -56,6 +56,13 @@ namespace Game
             MyClient.OnStartClient -= UpdateMenu;
         }
 
+        public void ShowLobby(bool show)
+        {
+            if (_homeMenu) _homeMenu.SetActive(!show);
+            if (_partyMenu) _partyMenu.SetActive(show);
+            Debug.Log($"[UI] ShowLobby({show})");
+        }
+
         public void ReadyUp()
         {
             NetworkExtensions.GetLocalPlayer().Cmd_ReadyUp();

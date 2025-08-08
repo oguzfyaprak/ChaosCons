@@ -15,6 +15,7 @@ namespace Game.Steam
     {
         public static SteamLobby Singleton;
         public static Lobby CurrentLobby;
+        [SerializeField] private Game.MainMenu _mainMenu;
 
         private void Start()
         {
@@ -101,6 +102,7 @@ namespace Game.Steam
 
             InstanceFinder.ServerManager.StartConnection();
             InstanceFinder.ClientManager.StartConnection();
+            _mainMenu?.ShowLobby(true);
 
             Debug.Log($"Lobby Created.");
         }
@@ -118,6 +120,7 @@ namespace Game.Steam
 
             Debug.Log(InstanceFinder.NetworkManager.IsClientStarted);
             InstanceFinder.ClientManager.StartConnection(address);
+            _mainMenu?.ShowLobby(true);
         }
 
         private void OnLobbyMemberJoined(Lobby lobby, Friend member)

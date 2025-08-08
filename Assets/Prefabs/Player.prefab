@@ -654,6 +654,7 @@ MonoBehaviour:
   - {fileID: -7881372377734059102}
   - {fileID: 8983735533132575881}
   - {fileID: -7155099967221520595}
+  - {fileID: 167198644531882063}
   - {fileID: 1028458201941492721}
   InitializedParentNetworkBehaviour: {fileID: 0}
   InitializedNestedNetworkObjects: []
@@ -908,11 +909,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d1a45eedd16f4b6a9a076dfe118c7254, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _componentIndexCache: 255
+  _componentIndexCache: 9
   _addedNetworkObject: {fileID: 7837606397448522166}
-  _networkObjectCache: {fileID: 0}
-  contoller: {fileID: 0}
-  componentsToEnable: []
+  _networkObjectCache: {fileID: 7837606397448522166}
+  contoller: {fileID: 2056877680756426071}
+  componentsToEnable:
+  - {fileID: 1945660290638223295}
   _usernameText: {fileID: 763782333410003446}
   _isReadyText: {fileID: 5513713283597292851}
 --- !u!1 &5506712535762855421
@@ -959,7 +961,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8a6a39c46bf52104ba8efe3100bce3f7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _componentIndexCache: 9
+  _componentIndexCache: 10
   _addedNetworkObject: {fileID: 7837606397448522166}
   _networkObjectCache: {fileID: 7837606397448522166}
 --- !u!1 &8165999070580105940

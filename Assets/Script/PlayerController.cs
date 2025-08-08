@@ -7,6 +7,7 @@ using FishNet.Connection;
 using Game.Stats; // PlayerStats sınıfın varsa kalacak, yoksa bu satırı sil
 using Game.Player; // PlayerRegistry'nin namespace'i
 
+
 namespace Game.Player
 {
     [RequireComponent(typeof(CharacterController))]
@@ -50,7 +51,7 @@ namespace Game.Player
         private NetworkObject heldItem;
         private PlayerStats stats; // PlayerStats scriptini sağladığında aktif olacak
 
-        private bool _movementEnabled = true;
+        private bool _movementEnabled = false;
         private float speedMultiplier = 1f;
 
         public int PlayerID { get; private set; }
@@ -93,16 +94,8 @@ namespace Game.Player
         public override void OnStartClient()
         {
             base.OnStartClient();
-
-            if (IsOwner)
-            {
-                Cursor.lockState = CursorLockMode.Locked;
-                Cursor.visible = false;
-            }
-            else
-            {
-                DisableCameraAndAudio();
-            }
+            SetMovementEnabled(false);
+            if (!IsOwner) DisableCameraAndAudio();
         }
 
         private void DisableCameraAndAudio()
@@ -397,9 +390,71 @@ namespace Game.Player
             speedMultiplier = multiplier;
         }
 
+       
+
+        private void OnSpawned(NetworkObject obj)
+        {
+            // Bu, oyuncu objesi ilk oluşturulduğunda kontrolü devre dışı bırakmak için çağrılır.
+            if (obj == base.NetworkObject)
+            {
+                SetMovementEnabled(false);
+            }
+        }
+
         public void ResetSpeedMultiplier()
         {
             speedMultiplier = 1f;
+        }
+
+        [TargetRpc]
+        public void TargetSetMovementEnabled(NetworkConnection conn, bool enabled)
+        {
+            SetMovementEnabled(enabled);
+
+            // İstersen controller GO ve component’leri de burada yönet:
+            // contoller.SetActive(enabled);
+            // foreach (var c in componentsToEnable) c.enabled = enabled;
+        }
+
+        [TargetRpc]
+        public void TargetForceLobbyState(NetworkConnection conn)
+        {
+            // input KAPALI
+            SetMovementEnabled(false);
+
+            var input = GetComponent<PlayerInput>();
+            if (input) input.enabled = false;
+
+            if (characterController) characterController.enabled = false;
+
+            // kamerayı da serbest bırak
+            if (IsOwner)
+            {
+                Cursor.lockState = CursorLockMode.None;
+                Cursor.visible = true;
+            }
+
+            Debug.Log("[PC] TargetForceLobbyState -> input OFF, CC OFF");
+        }
+
+        [TargetRpc]
+        public void TargetForceGameState(NetworkConnection conn)
+        {
+            // input AÇIK
+            var input = GetComponent<PlayerInput>();
+            if (input) input.enabled = true;
+
+            if (characterController) characterController.enabled = true;
+
+            SetMovementEnabled(true);
+
+            if (IsOwner)
+            {
+                Cursor.lockState = CursorLockMode.Locked;
+                Cursor.visible = false;
+            }
+
+            Debug.Log("[PC] TargetForceGameState -> input ON, CC ON");
         }
     }
 }

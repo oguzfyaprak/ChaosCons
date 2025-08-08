@@ -5290,7 +5290,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4a2655abacb04d2ebf2ed14e9ee64908, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _playerPrefab: {fileID: 266104129498182874, guid: 4425932d93d11234090bc2454d011e71, type: 3}
+  lobbyAvatarPrefab: {fileID: 266104129498182874, guid: 4425932d93d11234090bc2454d011e71, type: 3}
+  gamePlayerPrefab: {fileID: 2056877680756426071, guid: ba2d903bfe0c3c043b27835043c3871a, type: 3}
+  gameSceneName: MainMap
+  respawnTag: RespawnPoint
 --- !u!114 &1876677321
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6105,6 +6108,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ec2d85c800df4bd294c814abbe02e6be, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  _mainMenu: {fileID: 0}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
