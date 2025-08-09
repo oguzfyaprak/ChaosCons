@@ -94,27 +94,17 @@ namespace Game
             if (!InstanceFinder.IsServerStarted)
                 return;
 
-            // Spawn point’leri hazırla
             _gameSpawnPoints.Clear();
             foreach (var go in GameObject.FindGameObjectsWithTag(respawnTag))
                 _gameSpawnPoints.Add(go.transform);
 
-            if (_gameSpawnPoints.Count == 0)
+            foreach (var conn in InstanceFinder.ServerManager.Clients.Values)
             {
-                Debug.LogError($"[DualStage] '{respawnTag}' tag'li spawn noktası bulunamadı!");
-                return;
-            }
-
-            // 🔑 Tüm bağlı client’lar için (sen PlayerConnectionManager kullanıyorsun, istersen aşağıdaki satırla da olur)
-            foreach (var client in PlayerConnectionManager.Instance.AllClients)
-            {
-                var owner = client.Owner;
-
-                if (_lobbyAvatars.TryGetValue(owner.ClientId, out var lob) && lob)
+                if (_lobbyAvatars.TryGetValue(conn.ClientId, out var lob) && lob)
                     InstanceFinder.ServerManager.Despawn(lob);
-                _lobbyAvatars.Remove(owner.ClientId);
 
-                SpawnGamePlayer(owner, pickIndex: owner.ClientId);
+                _lobbyAvatars.Remove(conn.ClientId);
+                SpawnGamePlayer(conn, conn.ClientId);
             }
         }
 

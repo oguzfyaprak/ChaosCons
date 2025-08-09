@@ -91,13 +91,24 @@ namespace Game.Player
                 Debug.LogError("❌ PlayerStats componenti bulunamadı! Lütfen PlayerStats scriptini sağlayın veya bu satırı silin.");
         }
 
+        private IEnumerator EnsureSingleListenerRoutine()
+        {
+            yield return null;
+            if (!IsOwner) yield break;
+            var all = FindObjectsByType<AudioListener>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            foreach (var l in all)
+                if (!l.transform.IsChildOf(cameraHolder)) l.enabled = false;
+        }
+
         public override void OnStartClient()
         {
             base.OnStartClient();
+            var pi = GetComponent<UnityEngine.InputSystem.PlayerInput>();
+            if (!IsOwner && pi) pi.enabled = false;   // non-owner input kapalı
             SetMovementEnabled(false);
             if (!IsOwner) DisableCameraAndAudio();
+            if (IsOwner) StartCoroutine(EnsureSingleListenerRoutine());
         }
-
         private void DisableCameraAndAudio()
         {
             Camera cam = cameraHolder.GetComponentInChildren<Camera>();
