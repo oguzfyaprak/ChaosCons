@@ -91,24 +91,13 @@ namespace Game.Player
                 Debug.LogError("❌ PlayerStats componenti bulunamadı! Lütfen PlayerStats scriptini sağlayın veya bu satırı silin.");
         }
 
-        private IEnumerator EnsureSingleListenerRoutine()
-        {
-            yield return null;
-            if (!IsOwner) yield break;
-            var all = FindObjectsByType<AudioListener>(FindObjectsInactive.Include, FindObjectsSortMode.None);
-            foreach (var l in all)
-                if (!l.transform.IsChildOf(cameraHolder)) l.enabled = false;
-        }
-
         public override void OnStartClient()
         {
             base.OnStartClient();
-            var pi = GetComponent<UnityEngine.InputSystem.PlayerInput>();
-            if (!IsOwner && pi) pi.enabled = false;   // non-owner input kapalı
             SetMovementEnabled(false);
             if (!IsOwner) DisableCameraAndAudio();
-            if (IsOwner) StartCoroutine(EnsureSingleListenerRoutine());
         }
+
         private void DisableCameraAndAudio()
         {
             Camera cam = cameraHolder.GetComponentInChildren<Camera>();
@@ -331,25 +320,29 @@ namespace Game.Player
 
         public void OnMove(InputAction.CallbackContext context)
         {
-            if (IsOwner && _movementEnabled) moveInput = context.ReadValue<Vector2>();
+            if (!IsOwner) return;
+            if (_movementEnabled) moveInput = context.ReadValue<Vector2>();
             else moveInput = Vector2.zero;
         }
 
         public void OnLook(InputAction.CallbackContext context)
         {
-            if (IsOwner && _movementEnabled) lookInput = context.ReadValue<Vector2>();
+            if (!IsOwner) return;
+            if (_movementEnabled) lookInput = context.ReadValue<Vector2>();
             else lookInput = Vector2.zero;
         }
 
         public void OnJump(InputAction.CallbackContext context)
         {
-            if (IsOwner && _movementEnabled && context.started && IsGrounded())
+            if (!IsOwner) return;
+            if (_movementEnabled && context.started && IsGrounded())
                 isJumping = true;
         }
 
         public void OnSprint(InputAction.CallbackContext context)
         {
-            if (IsOwner && _movementEnabled)
+            if (!IsOwner) return;
+            if (_movementEnabled)
                 isSprinting = context.ReadValueAsButton();
             else
                 isSprinting = false;
@@ -357,14 +350,14 @@ namespace Game.Player
 
         public void OnInteract(InputAction.CallbackContext context)
         {
-            if (!IsOwner || !_movementEnabled || !context.started) return;
+            if (!IsOwner) return;
+            if (!_movementEnabled || !context.started) return;
 
             if (heldItem == null)
                 TryPickupItem();
             else
                 TryDropItem();
         }
-
         public void SetMovementEnabled(bool enabled)
         {
             Debug.Log($"[{(IsOwner ? "CLIENT" : "SERVER")}] PlayerController.SetMovementEnabled çağrıldı: {enabled}");
@@ -401,7 +394,7 @@ namespace Game.Player
             speedMultiplier = multiplier;
         }
 
-       
+
 
         private void OnSpawned(NetworkObject obj)
         {

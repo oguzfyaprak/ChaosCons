@@ -77,17 +77,28 @@ namespace Game.PlayerSystem
         [ObserversRpc]
         public void Rpc_ToggleController(bool value)
         {
+            // Yalnızca bu NetworkObject'un sahibi olan istemcideki koda gir
+            if (!IsOwner)
+            {
+                // Uzak istemcilerde (remote clients) controller'ı her zaman kapalı tut
+                contoller.SetActive(false);
+                foreach (var component in componentsToEnable)
+                {
+                    component.enabled = false;
+                }
+                return;
+            }
 
-            if (!IsOwner) return;
-
-            Cursor.lockState = CursorLockMode.Locked;
-
+            // Sahibin kendisinde (yerel oyuncuda) input'u yönet
             contoller.SetActive(value);
-
             foreach (var component in componentsToEnable)
             {
                 component.enabled = value;
             }
+
+            // Cursor'ı sadece yerel oyuncuda yönet
+            Cursor.lockState = value ? CursorLockMode.Locked : CursorLockMode.None;
+            Cursor.visible = !value;
         }
 
         [Server]

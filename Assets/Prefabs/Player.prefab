@@ -378,8 +378,6 @@ GameObject:
   - component: {fileID: 8983735533132575881}
   - component: {fileID: -7155099967221520595}
   - component: {fileID: 167198644531882063}
-  - component: {fileID: 3000369223612158185}
-  - component: {fileID: 1954940180357234063}
   m_Layer: 3
   m_Name: Player
   m_TagString: Player
@@ -593,7 +591,7 @@ MonoBehaviour:
       m_Calls: []
     m_ActionId: 9caa3d8a-6b2f-4e8e-8bad-6ede561bd9be
     m_ActionName: UI/TrackedDeviceOrientation
-  m_NeverAutoSwitchControlSchemes: 0
+  m_NeverAutoSwitchControlSchemes: 1
   m_DefaultControlScheme: Keyboard&Mouse
   m_DefaultActionMap: Player
   m_SplitScreenIndex: -1
@@ -919,38 +917,6 @@ MonoBehaviour:
   - {fileID: 1945660290638223295}
   _usernameText: {fileID: 763782333410003446}
   _isReadyText: {fileID: 5513713283597292851}
---- !u!114 &3000369223612158185
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2056877680756426071}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a437ec79e99b58e49ae1bb761985fcb1, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  _componentIndexCache: 255
-  _addedNetworkObject: {fileID: 7837606397448522166}
-  _networkObjectCache: {fileID: 0}
-  playerInput: {fileID: 1945660290638223295}
---- !u!114 &1954940180357234063
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2056877680756426071}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5ac4504cc54e38a4596ebf3de8665644, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  _componentIndexCache: 255
-  _addedNetworkObject: {fileID: 7837606397448522166}
-  _networkObjectCache: {fileID: 0}
-  cameraRig: {fileID: 8165999070580105940}
 --- !u!1 &5506712535762855421
 GameObject:
   m_ObjectHideFlags: 0

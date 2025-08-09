@@ -62,10 +62,10 @@ namespace Game
                 return;
             }
 
+            // Late-join: oyun sahnesindeysek direkt game player
             if (IsActiveScene(gameSceneName))
             {
-                // Geç join ise burada spawn ETME.
-                Debug.Log($"[DualStage] {conn.ClientId} joined while in {gameSceneName}. Waiting OnSceneLoaded...");
+                SpawnGamePlayer(conn, pickIndex: conn.ClientId);
                 return;
             }
         }
@@ -91,45 +91,61 @@ namespace Game
         {
             if (!IsLoadedScene(args, gameSceneName))
                 return;
-            if (!InstanceFinder.IsServerStarted)
-                return;
 
+            // Spawn point'leri hazırla
             _gameSpawnPoints.Clear();
             foreach (var go in GameObject.FindGameObjectsWithTag(respawnTag))
                 _gameSpawnPoints.Add(go.transform);
 
-            foreach (var conn in InstanceFinder.ServerManager.Clients.Values)
+            if (_gameSpawnPoints.Count == 0)
             {
-                if (_lobbyAvatars.TryGetValue(conn.ClientId, out var lob) && lob)
-                    InstanceFinder.ServerManager.Despawn(lob);
-
-                _lobbyAvatars.Remove(conn.ClientId);
-                SpawnGamePlayer(conn, conn.ClientId);
-            }
-        }
-
-        private readonly HashSet<int> _spawnedGame = new();
-        private void SpawnGamePlayer(NetworkConnection owner, int pickIndex)
-        {
-            if (_spawnedGame.Contains(owner.ClientId))
-            {
-                Debug.LogWarning($"[DualStage] {owner.ClientId} zaten spawn edilmiş, atlıyorum.");
+                Debug.LogError($"[DualStage] '{respawnTag}' tag'li spawn noktası bulunamadı!");
                 return;
             }
 
+            int i = 0;
+            foreach (var client in PlayerConnectionManager.Instance.AllClients)
+            {
+                var owner = client.Owner;
+
+                // 1) Lobby avatar varsa kaldır
+                if (_lobbyAvatars.TryGetValue(owner.ClientId, out var lob) && lob)
+                    InstanceFinder.ServerManager.Despawn(lob);
+
+                _lobbyAvatars.Remove(owner.ClientId);
+
+                // 2) Oyun player'ını spawn et (kontrolü hemen açma!)
+                int pick = i % _gameSpawnPoints.Count;
+                SpawnGamePlayer(owner, pick);
+
+                i++;
+            }
+        }
+
+        private void SpawnGamePlayer(NetworkConnection owner, int pickIndex)
+        {
             Transform sp = _gameSpawnPoints.Count > 0
                 ? _gameSpawnPoints[pickIndex % _gameSpawnPoints.Count]
                 : SpawnCache.Instance.SpawnPoints[pickIndex % SpawnCache.Instance.SpawnPoints.Count()].transform;
 
-            var go = Instantiate(gamePlayerPrefab, sp.position, sp.rotation);
+            var go = UnityEngine.Object.Instantiate(gamePlayerPrefab, sp.position, sp.rotation);
             InstanceFinder.ServerManager.Spawn(go, owner);
-            _spawnedGame.Add(owner.ClientId);
 
-            if (go.TryGetComponent<PlayerController>(out var pc))
+            // PC’yi bul
+            if (go.TryGetComponent<Game.Player.PlayerController>(out var pc))
             {
-                owner.OnLoadedStartScenes -= OnOwnerLoadedStartScenes; // tek abonelik
+                // Önce eski aboneliği temizle (önlem)
+                owner.OnLoadedStartScenes -= OnOwnerLoadedStartScenes;
+
+                // Client hazır olunca kontrol verelim
                 _pendingControllers[owner.ClientId] = pc;
                 owner.OnLoadedStartScenes += OnOwnerLoadedStartScenes;
+
+                Debug.Log($"[DualStage] Queued TargetForceGameState until client {owner.ClientId} finishes loading.");
+            }
+            else
+            {
+                Debug.LogWarning("[DualStage] PlayerController bulunamadı (prefab yanlış olabilir).");
             }
 
             Debug.Log($"[DualStage] GamePlayer spawned for {owner.ClientId} @ {sp.position}");
